@@ -1,0 +1,339 @@
+#!/bin/bash
+# terraformsh - Bash wrapper around Terraform
+# Copyright (C) 2020-2021 Peter Willis <peterwwillis@gmail.com>
+
+set -e -u -o pipefail
+[ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
+VERSION="0.4"
+
+# ---------------------------------------------------------------------------------------- #
+_usage () {
+    cat <<EOUSAGE
+# terraformsh v$VERSION
+  Usage: $0 [OPTIONS] COMMAND [..]
+
+# About
+  Terraformsh makes it easier to run Terraform in automation. It runs common
+  Terraform commands for you in order, passing the right arguments as needed.
+  It also defaults to good conventions, like using .plan files for changes.
+
+# Requirements
+ - Bash (v3+)
+ - Terraform
+ - AWS CLI (only for aws_bootstrap command)
+
+# Usage
+  You can specify most options and commands multiple times, as Terraform will allow
+  you to pass options multiple times. This allows you to split up your configuration
+  among multiple files/paths to keep it DRY.
+
+  To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
+  file(s) have the following variables:
+    bucket          - The S3 bucket your Terraform state will live in
+    dynamodb_table  - The DynamoDB table your Terraform state will be managed in
+
+  You can also override the following variables as environment variables or in a
+  .terraformshrc file:
+
+    TF_PLANFILE=$TF_PLANFILE
+    TF_DESTROY_PLANFILE=$TF_DESTROY_PLANFILE
+    TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
+    USE_PLANFILE=$USE_PLANFILE
+    VARFILE_ARG=()
+    BACKENDVARFILE_ARG=()
+    CD_DIRS=()
+    CMDS=()
+    PLAN_ARGS=(${PLAN_ARGS[@]})
+    APPLY_ARGS=(${APPLY_ARGS[@]})
+    PLANDESTROY_ARGS=(${PLANDESTROY_ARGS[@]})
+    DESTROY_ARGS=(${DESTROY_ARGS[@]})
+    REFRESH_ARGS=(${REFRESH_ARGS[@]})
+    INIT_ARGS=(${INIT_ARGS[@]})
+    IMPORT_ARGS=(${IMPORT_ARGS[@]})
+    GET_ARGS=(${GET_ARGS[@]})
+    DEBUG=0
+
+# Examples
+ - Run plan, ask for approval, then apply the plan:
+    \`\`\`
+    $0 \\
+      -f ../terraform.tfvars.json \\
+      -f override.auto.tfvars.json \\
+      -b ../backend.tfvars \\
+      -b backend-key.tfvars \\
+      -C ../../../rootmodules/aws-infra-region/ \\
+      plan \\
+      approve \\
+      apply
+    \`\`\`
+ - Run plan using a .terraformshrc file:
+    \`\`\`
+    $0 plan
+    \`\`\`
+
+# Options
+    -f FILE           A file passed to Terraform's -var-file option
+    -b FILE           A file passed to Terraform's -backend-config option
+    -C DIR            Change to directory DIR
+    -c file           Specify a '.terraformshrc' file to load
+    -P                Do not use '.plan' files for plan/apply/destroy commands
+    -v                Verbose mode
+    -h                This help screen
+
+# Commands
+    plan              Run init, get, validate, and \`terraform plan -out $TF_PLANFILE\`
+    apply             Run init, get, validate, and \`terraform apply $TF_PLANFILE\`
+    plan_destroy      Run init, get, validate, and \`terraform plan -destroy -out=$TF_DESTROY_PLANFILE\`
+    destroy           Run init, get, validate, and \`terraform apply $TF_DESTROY_PLANFILE\`
+    shell             Run init, get, and \`bash -i -l\`
+    refresh           Run init, and \`terraform refresh\`
+    validate          Run init, get, and \`terraform validate\`
+    init              Run clean_modules, and \`terraform init\`
+    clean             Remove '.terraform/modules/*', terraform.tfstate files, and .plan files
+    clean_modules     Run \`rm -v -rf .terraform/modules/*\`
+    approve           Prompts the user to approve the next step, or the program will exit with an error.
+    aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
+                      If found, creates the bucket and table and initializes your Terraform state with them.
+EOUSAGE
+    exit 1
+}
+
+# ---------------------------------------------------------------------------------------- #
+# ------------------           functions                       --------------------------- #
+
+_cmd_plan () {
+    _cmd_validate
+    ( set -x; $terraform plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" )
+}
+
+_cmd_apply () {
+    _cmd_init
+    ( set -x; $terraform apply "${APPLY_ARGS[@]}" ) && rm -f "$TF_PLANFILE"
+}
+
+_cmd_plan_destroy () {
+    _cmd_validate
+    ( set -x; $terraform plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" )
+}
+
+_cmd_destroy () {
+    _cmd_init
+    ( set -x; $terraform apply "${DESTROY_ARGS[@]}"  ) && rm -f "$TF_DESTROY_PLANFILE"
+}
+
+# Validate doesn't require 'init' to check the .tf files syntax, but it does
+# require init once it gets to the providers
+_cmd_validate () {
+    _cmd_get
+    ( set -x; $terraform validate )
+}
+
+_cmd_get () {
+    _cmd_init # 'terraform get' does nothing if we have not initialized terraform
+    ( set -x; $terraform get "${GET_ARGS[@]}" )
+}
+
+_cmd_refresh() {
+    _cmd_init
+    ( set -x; $terraform refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" )
+}
+
+# Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
+# of the Terraform command, if you notice any problems with init in the future.
+_cmd_init () {
+    ( set -x; $terraform init "${INIT_ARGS[@]}" )
+}
+
+# The following allows you to do something like 'terraformsh plan shell' to drop
+# into a shell in the working directory of the root module to be used, with
+# everything ready to run 'terraform' commands (such as 'terraform state list')
+_cmd_shell () {
+    _cmd_get
+    bash -i -l
+}
+
+# This is basically in case the directory structure where this runs was changed
+# after an initial terraform run. Terraform sucks at cleaning up broken symlinks
+# and its modules.json, so unless we want to have a *ton* of complex logic here,
+# just blow modules away every time.
+_cmd_clean_modules () {
+    ( set -x; rm -v -rf .terraform/modules/* )
+}
+
+_cmd_clean () {
+    _cmd_clean_modules
+    ( set -x; rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true )
+}
+
+_cmd_approve () {
+    echo ""
+    read -p "Are you SURE you want to apply the above plan? Type 'YES' to apply now: " APPROVE
+    if [ "$APPROVE" = "YES" ] ; then
+        echo "Approval given; continuing with terraform apply"
+    else
+        echo "Approval not given; exiting!"
+        exit 1
+    fi
+    echo ""
+}
+
+# This function is used to bootstrap a new AWS remote state file.
+# You would typically run this in a brand new region, or for a brand new
+# root module, to create the initial state file. It will attempt to re-use
+# an existing S3 bucket and DynamoDB table, or create them if they don't
+# yet exist.
+_cmd_aws_bootstrap () {
+    _cmd_clean_modules
+
+    # Look though the backend var files for the backend bucket and dynamodb_table
+    for varfile in "${BACKENDVARFILE_ARG[@]}" ; do
+        BACKEND_BUCKET="$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" \
+            | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )"
+        BACKEND_TABLE="$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" \
+            | sed -e 's/^[[:space:]]*dynamodb_table[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )"
+    done
+
+    if [ -z "${BACKEND_BUCKET:-}" ] || [ -z "${BACKEND_TABLE:-}" ] ; then
+        echo "$0: Error: make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
+        exit 1
+    fi
+
+    # Set a local terraform backend
+    printf "terraform {\n\tbackend local {}\n}\n" > terraform-backend.tf
+
+    # First remove any existing previous local state
+    _cmd_clean
+
+    # Initialize local state
+    _cmd_init
+
+    # Attempt to import bucket if it exists
+    BUCKET_REGION="$(aws s3api get-bucket-location \
+        --bucket "${BACKEND_BUCKET}" --query LocationConstraint --output text \
+        || true )"
+    if [ -n "$BUCKET_REGION" ] ; then
+        echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..."
+        $terraform import -input=false "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
+    else
+        echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..."
+    fi
+
+    # Attempt to import dynamodb table if it exists
+    DYNAMODB_TABLE="$( aws dynamodb list-tables \
+        | jq -re "select(.TableNames | index(\"$BACKEND_TABLE\")) | .TableNames[]" || true )"
+    if [ -n "$DYNAMODB_TABLE" ] ; then
+        echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..."
+        $terraform import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
+    else
+        echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..."
+    fi
+
+    # Plan & Apply to create the dynamodb table and s3 bucket
+    $terraform plan -input=false "${VARFILE_ARG[@]}" \
+        -target aws_dynamodb_table.terraform_lock \
+        -target aws_s3_bucket.terraform_state \
+        -out "$TF_BOOTSTRAP_PLANFILE"
+    $terraform apply -input=false "$TF_BOOTSTRAP_PLANFILE"
+
+    # Set an s3 terraform backend
+    printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
+
+    echo "Sleeping 60 seconds before querying bucket again ..."
+    sleep 60
+
+    ( set -x ; $terraform init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}" )
+}
+
+
+# ---------------------------------------------------------------------------------------- #
+# ------------------           load default variables          --------------------------- #
+
+# Override the TERRAFORM variable to change the name of the binary to run
+terraform="${TERRAFORM:-terraform}"
+
+# Help load AWS credentials, and silence some messages for automation.
+AWS_SDK_LOAD_CONFIG="${AWS_SDK_LOAD_CONFIG:-1}"
+TF_IN_AUTOMATION="${TF_IN_AUTOMATION:-1}"
+export AWS_SDK_LOAD_CONFIG TF_IN_AUTOMATION
+
+# Override these to change the name of the plan files
+TF_PLANFILE="${TF_PLANFILE:-terraform.plan}"
+TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-terraform-destroy.plan}"
+TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-terraform-bootstrap.plan}"
+USE_PLANFILE=1
+
+declare -a BACKENDVARFILE_ARG=() VARFILE_ARG=() CMDS=() CD_DIRS=()
+declare -a PLAN_ARGS=("-input=false")
+declare -a APPLY_ARGS=("-input=false")
+declare -a PLANDESTROY_ARGS=("-input=false")
+declare -a DESTROY_ARGS=("-input=false")
+declare -a REFRESH_ARGS=("-input=false")
+declare -a INIT_ARGS=("-input=false")
+declare -a IMPORT_ARGS=("-input=false")
+declare -a GET_ARGS=("-update=true")
+
+# Load variables from a local config file
+[ -r ".terraformshrc" ] && . "./.terraformshrc"
+[ "${DEBUG:-0}" = "1" ] && set -x # enable tracing if DEBUG=1 was set
+
+if [ $USE_PLANFILE -eq 1 ] ; then
+    PLAN_ARGS+=("-out=$TF_PLANFILE")
+    APPLY_ARGS+=("$TF_PLANFILE")
+    PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
+    DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
+fi
+
+# ---------------------------------------------------------------------------------------- #
+# ------------------           parse cmdline options           --------------------------- #
+
+while getopts "f:b:C:c:Phv" args ; do
+    case $args in
+        f)
+            VARFILE_ARG+=("-var-file" "$OPTARG") ;;
+        b)
+            BACKENDVARFILE_ARG+=("-backend-config" "$OPTARG") ;;
+        C)
+            CD_DIRS+=("$OPTARG") ;;
+        c)
+            . "$(cd "$(dirname "$OPTARG")" && pwd -P)/$(basename "$OPTARG")" ;;
+        P)
+            USE_PLANFILE=0 ;;
+        h)
+            _usage ;;
+        v)
+            set -x ; export DEBUG=1 ;;
+        *)
+            echo "$0: Error: unknown option $args" ;
+            exit 1 ;;
+    esac
+done
+shift $(($OPTIND-1))
+
+
+# ---------------------------------------------------------------------------------------- #
+# --------------------         run the commands            ------------------------------- #
+
+for dir in "${CD_DIRS[@]}" ; do
+    cd "$dir"
+done
+
+[ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
+
+if [ ${#CMDS[@]} -lt 1 ] ; then
+    echo "$0: Error: No COMMAND was specified"
+    echo ""
+    _usage
+fi
+
+if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
+    echo "$0: WARNING: No -b option passed! Potentially using only local state!"
+    echo ""
+    sleep 2
+    INIT_ARGS+=("-reconfigure" "-force-copy")
+else
+    INIT_ARGS+=("-reconfigure" "-force-copy" "${BACKENDVARFILE_ARG[@]}")
+fi
+
+for name in "${CMDS[@]}" ; do
+    _cmd_"$name"
+done

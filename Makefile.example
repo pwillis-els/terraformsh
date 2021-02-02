@@ -1,0 +1,35 @@
+# This Makefile will pass any additional targets/arguments to terraformsh.
+# Make sure to use 'make --' if you're passing '-f'-style arguments
+#
+# Example: run 'terraformsh plan apply' with all options passed in
+#
+#     make module-1 plan apply
+
+TERRAFORMSH     = ./terraformsh
+ROOT_MODS       = ./terraform/modules/root/
+
+# Use readlink to get full path to configs, since we will be changing directories
+TFVARS          = $(shell readlink -f terraform.tfvars.json)
+BACKEND_TFVARS  = $(shell readlink -f backend.tfvars)
+
+_TERRAFORMSH   = $(TERRAFORMSH) -f $(TFVARS) -b $(BACKEND_TFVARS)
+
+.PHONY: help module-1 module-2
+
+help: #TARGET List all available targets (default)
+	@echo "List of available targets:"
+	@echo ""
+	@grep -P '^[^#:]+\:.*\s#TARGET' $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)) \
+    | sed -E 's/^([^#:]+)\:.*\s#TARGET\s(.*)/ \1§\2/' \
+    | column -s § -t
+	@echo ""
+
+module-1: #TARGET Run terraformsh on the first root module
+	@$(_TERRAFORMSH) -C $(ROOT_MODS)/module-1-dir $(filter-out $@,$(MAKECMDGOALS))
+
+module-2: #TARGET Run terraformsh on the second root module
+	@$(_TERRAFORMSH) -C $(ROOT_MODS)/module-2-dir $(filter-out $@,$(MAKECMDGOALS))
+
+# Do-nothing target; needed for the 'filter-out' magic above
+%:
+	@:
