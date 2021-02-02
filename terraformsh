@@ -29,6 +29,7 @@ _usage () {
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
+
     bucket          - The S3 bucket your Terraform state will live in
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
