@@ -328,9 +328,8 @@ if [ ${#CMDS[@]} -lt 1 ] ; then
 fi
 
 if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-    echo "$0: WARNING: No -b option passed! Potentially using only local state!"
+    echo "$0: WARNING: No -b option passed! Potentially using only local state."
     echo ""
-    sleep 2
     INIT_ARGS+=("-reconfigure" "-force-copy")
 else
     INIT_ARGS+=("-reconfigure" "-force-copy" "${BACKENDVARFILE_ARG[@]}")
