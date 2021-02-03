@@ -36,7 +36,7 @@ _usage () {
   You can also override the following variables as environment variables or in a
   .terraformshrc file:
 
-    TERRAFORM=$terraform
+    TERRAFORM=$TERRAFORM
     TF_PLANFILE=$TF_PLANFILE
     TF_DESTROY_PLANFILE=$TF_DESTROY_PLANFILE
     TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
@@ -105,45 +105,45 @@ EOUSAGE
 
 _cmd_plan () {
     _cmd_validate
-    ( set -x; $terraform plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" )
+    ( set -x; $TERRAFORM plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" )
 }
 
 _cmd_apply () {
     _cmd_init
-    ( set -x; $terraform apply "${APPLY_ARGS[@]}" ) && rm -f "$TF_PLANFILE"
+    ( set -x; $TERRAFORM apply "${APPLY_ARGS[@]}" ) && rm -f "$TF_PLANFILE"
 }
 
 _cmd_plan_destroy () {
     _cmd_validate
-    ( set -x; $terraform plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" )
+    ( set -x; $TERRAFORM plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" )
 }
 
 _cmd_destroy () {
     _cmd_init
-    ( set -x; $terraform apply "${DESTROY_ARGS[@]}"  ) && rm -f "$TF_DESTROY_PLANFILE"
+    ( set -x; $TERRAFORM apply "${DESTROY_ARGS[@]}"  ) && rm -f "$TF_DESTROY_PLANFILE"
 }
 
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
     _cmd_get
-    ( set -x; $terraform validate )
+    ( set -x; $TERRAFORM validate )
 }
 
 _cmd_get () {
     _cmd_init # 'terraform get' does nothing if we have not initialized terraform
-    ( set -x; $terraform get "${GET_ARGS[@]}" )
+    ( set -x; $TERRAFORM get "${GET_ARGS[@]}" )
 }
 
 _cmd_refresh() {
     _cmd_init
-    ( set -x; $terraform refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" )
+    ( set -x; $TERRAFORM refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" )
 }
 
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
-    ( set -x; $terraform init "${INIT_ARGS[@]}" )
+    ( set -x; $TERRAFORM init "${INIT_ARGS[@]}" )
 }
 
 # The following allows you to do something like 'terraformsh plan shell' to drop
@@ -215,7 +215,7 @@ _cmd_aws_bootstrap () {
         || true )"
     if [ -n "$BUCKET_REGION" ] ; then
         echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..."
-        $terraform import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
+        $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
     else
         echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..."
     fi
@@ -225,17 +225,17 @@ _cmd_aws_bootstrap () {
         | jq -re "select(.TableNames | index(\"$BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
         echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..."
-        $terraform import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
+        $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
     else
         echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..."
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
-    $terraform plan -input=false "${VARFILE_ARG[@]}" \
+    $TERRAFORM plan -input=false "${VARFILE_ARG[@]}" \
         -target aws_dynamodb_table.terraform_lock \
         -target aws_s3_bucket.terraform_state \
         -out "$TF_BOOTSTRAP_PLANFILE"
-    $terraform apply -input=false "$TF_BOOTSTRAP_PLANFILE"
+    $TERRAFORM apply -input=false "$TF_BOOTSTRAP_PLANFILE"
 
     # Set an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
@@ -243,50 +243,63 @@ _cmd_aws_bootstrap () {
     echo "Sleeping 60 seconds before querying bucket again ..."
     sleep 60
 
-    ( set -x ; $terraform init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}" )
+    ( set -x ; $TERRAFORM init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}" )
 }
 
+_default_vars () {
+    # Help load AWS credentials, and silence some messages for automation.
+    AWS_SDK_LOAD_CONFIG="${AWS_SDK_LOAD_CONFIG:-1}"
+    TF_IN_AUTOMATION="${TF_IN_AUTOMATION:-1}"
+    export AWS_SDK_LOAD_CONFIG TF_IN_AUTOMATION
 
-# ---------------------------------------------------------------------------------------- #
-# ------------------           load default variables          --------------------------- #
+    # Override these to change the name of the plan files
+    TF_PLANFILE="${TF_PLANFILE:-terraform.plan}"
+    TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-terraform-destroy.plan}"
+    TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-terraform-bootstrap.plan}"
+    USE_PLANFILE="${USE_PLANFILE:-1}"
+    TERRAFORM="${TERRAFORM:-terraform}"
+    PLAN_ARGS=("-input=false")
+    APPLY_ARGS=("-input=false")
+    PLANDESTROY_ARGS=("-input=false")
+    DESTROY_ARGS=("-input=false")
+    REFRESH_ARGS=("-input=false")
+    INIT_ARGS=("-input=false")
+    IMPORT_ARGS=("-input=false")
+    GET_ARGS=("-update=true")
+}
 
-# Help load AWS credentials, and silence some messages for automation.
-AWS_SDK_LOAD_CONFIG="${AWS_SDK_LOAD_CONFIG:-1}"
-TF_IN_AUTOMATION="${TF_IN_AUTOMATION:-1}"
-export AWS_SDK_LOAD_CONFIG TF_IN_AUTOMATION
+_final_vars () {
+    if [ $USE_PLANFILE -eq 1 ] ; then
+        PLAN_ARGS+=("-out=$TF_PLANFILE")
+        APPLY_ARGS+=("$TF_PLANFILE")
+        PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
+        DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
+    fi
+}
 
-# Override these to change the name of the plan files
-TF_PLANFILE="${TF_PLANFILE:-terraform.plan}"
-TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-terraform-destroy.plan}"
-TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-terraform-bootstrap.plan}"
-USE_PLANFILE=1
-
-declare -a BACKENDVARFILE_ARG=() VARFILE_ARG=() CMDS=() CD_DIRS=()
-declare -a PLAN_ARGS=("-input=false")
-declare -a APPLY_ARGS=("-input=false")
-declare -a PLANDESTROY_ARGS=("-input=false")
-declare -a DESTROY_ARGS=("-input=false")
-declare -a REFRESH_ARGS=("-input=false")
-declare -a INIT_ARGS=("-input=false")
-declare -a IMPORT_ARGS=("-input=false")
-declare -a GET_ARGS=("-update=true")
-
-# Load variables from a local config file
-[ -r ".terraformshrc" ] && . "./.terraformshrc"
-[ "${DEBUG:-0}" = "1" ] && set -x # enable tracing if DEBUG=1 was set
-
-# Override the TERRAFORM variable to change the name of the binary to run
-terraform="${TERRAFORM:-terraform}"
-
-if [ $USE_PLANFILE -eq 1 ] ; then
-    PLAN_ARGS+=("-out=$TF_PLANFILE")
-    APPLY_ARGS+=("$TF_PLANFILE")
-    PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
-    DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
-fi
+_load_conf () {
+    # Load variables from a local config file if one wasn't passed via '-c'
+    if [ ${#CONF_FILE[@]} -lt 1 ] && [ -r ".terraformshrc" ] ; then
+        . "./.terraformshrc"
+        _final_vars
+    elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
+        for conf in "${CONF_FILE[@]}" ; do
+            . "$(cd "$(dirname "$conf")" && pwd -P)/$(basename "$conf")"
+        done
+        _final_vars
+    else
+        _final_vars
+    fi
+}
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
+
+SHOW_HELP=0
+declare -a BACKENDVARFILE_ARG=() VARFILE_ARG=() CMDS=() CD_DIRS=() CONF_FILE=()
+declare -a PLAN_ARGS APPLY_ARGS PLANDESTROY_ARGS DESTROY_ARGS REFRESH_ARGS INIT_ARGS IMPORT_ARGS GET_ARGS
+
+_default_vars
 
 while getopts "f:b:C:c:Phv" args ; do
     case $args in
@@ -297,13 +310,13 @@ while getopts "f:b:C:c:Phv" args ; do
         C)
             CD_DIRS+=("$OPTARG") ;;
         c)
-            . "$(cd "$(dirname "$OPTARG")" && pwd -P)/$(basename "$OPTARG")" ;;
+            CONF_FILE+=("$OPTARG") ;;
         P)
             USE_PLANFILE=0 ;;
         h)
-            _usage ;;
+            SHOW_HELP=1 ;;
         v)
-            set -x ; export DEBUG=1 ;;
+            export DEBUG=1 ;;
         *)
             echo "$0: Error: unknown option $args" ;
             exit 1 ;;
@@ -311,16 +324,21 @@ while getopts "f:b:C:c:Phv" args ; do
 done
 shift $(($OPTIND-1))
 
+[ $SHOW_HELP -eq 1 ] && _final_vars && _usage
 
 # ---------------------------------------------------------------------------------------- #
 # --------------------         run the commands            ------------------------------- #
 
+[ "${DEBUG:-0}" = "1" ] && set -x
+
+_load_conf
+
+# Change to directories
 for dir in "${CD_DIRS[@]}" ; do
     cd "$dir"
 done
 
 [ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
-
 if [ ${#CMDS[@]} -lt 1 ] ; then
     echo "$0: Error: No COMMAND was specified"
     echo ""

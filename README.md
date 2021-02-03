@@ -25,6 +25,7 @@
   You can also override the following variables as environment variables or in a
   .terraformshrc file:
 
+    TERRAFORM=terraform
     TF_PLANFILE=terraform.plan
     TF_DESTROY_PLANFILE=terraform-destroy.plan
     TF_BOOTSTAP_PLANFILE=terraform-bootstrap.plan
