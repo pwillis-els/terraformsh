@@ -275,20 +275,23 @@ _final_vars () {
         PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
         DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
     fi
+    if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
+        echo "$0: WARNING: No -b option passed! Potentially using only local state."
+        echo ""
+        INIT_ARGS+=("-reconfigure" "-force-copy")
+    else
+        INIT_ARGS+=("-reconfigure" "-force-copy" "${BACKENDVARFILE_ARG[@]}")
+    fi
 }
 
 _load_conf () {
     # Load variables from a local config file if one wasn't passed via '-c'
     if [ ${#CONF_FILE[@]} -lt 1 ] && [ -r ".terraformshrc" ] ; then
         . "./.terraformshrc"
-        _final_vars
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
         for conf in "${CONF_FILE[@]}" ; do
             . "$(cd "$(dirname "$conf")" && pwd -P)/$(basename "$conf")"
         done
-        _final_vars
-    else
-        _final_vars
     fi
 }
 
@@ -324,7 +327,7 @@ while getopts "f:b:C:c:Phv" args ; do
 done
 shift $(($OPTIND-1))
 
-[ $SHOW_HELP -eq 1 ] && _final_vars && _usage
+[ $SHOW_HELP -eq 1 ] && _usage
 
 # ---------------------------------------------------------------------------------------- #
 # --------------------         run the commands            ------------------------------- #
@@ -345,13 +348,7 @@ if [ ${#CMDS[@]} -lt 1 ] ; then
     _usage
 fi
 
-if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-    echo "$0: WARNING: No -b option passed! Potentially using only local state."
-    echo ""
-    INIT_ARGS+=("-reconfigure" "-force-copy")
-else
-    INIT_ARGS+=("-reconfigure" "-force-copy" "${BACKENDVARFILE_ARG[@]}")
-fi
+_final_vars
 
 for name in "${CMDS[@]}" ; do
     _cmd_"$name"
