@@ -215,7 +215,7 @@ _cmd_aws_bootstrap () {
         || true )"
     if [ -n "$BUCKET_REGION" ] ; then
         echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..."
-        $terraform import -input=false "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
+        $terraform import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
     else
         echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..."
     fi
