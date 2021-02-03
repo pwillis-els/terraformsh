@@ -1,4 +1,4 @@
-all: lint README.md
+all: lint readme
 
 lint:
 	shellcheck \
@@ -9,5 +9,5 @@ lint:
         --exclude=SC1090 \
         terraformsh
 
-README.md:
-	./terraformsh -h > README.md ; true
+readme:
+	rm -f README.md ; ./terraformsh -h > README.md ; true

@@ -9,13 +9,15 @@ VERSION="0.4"
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOUSAGE
-# terraformsh v$VERSION
-  Usage: $0 [OPTIONS] COMMAND [..]
+    terraformsh v$VERSION
+    Usage: $0 [OPTIONS] COMMAND [..]
 
 # About
   Terraformsh makes it easier to run Terraform in automation. It runs common
   Terraform commands for you in order, passing the right arguments as needed.
-  It also defaults to good conventions, like using .plan files for changes.
+  You can use configuration files to pre-set options and override them
+  via the environment and command-line. And it defaults to good conventions,
+  like using .plan files for changes.
 
 # Requirements
  - Bash (v3+)
@@ -27,24 +29,24 @@ _usage () {
   you to pass options multiple times. This allows you to split up your configuration
   among multiple files/paths to keep it DRY.
 
-  To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
-  file(s) have the following variables:
-
-    bucket          - The S3 bucket your Terraform state will live in
-    dynamodb_table  - The DynamoDB table your Terraform state will be managed in
-
-  You can also override the following variables as environment variables or in a
-  .terraformshrc file:
+  You can override the following defaults with environment variables, or set
+  them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
+  and \`.terraformshrc\`):
 
     TERRAFORM=$TERRAFORM
     TF_PLANFILE=$TF_PLANFILE
     TF_DESTROY_PLANFILE=$TF_DESTROY_PLANFILE
     TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
     USE_PLANFILE=$USE_PLANFILE
-    VARFILE_ARG=()
-    BACKENDVARFILE_ARG=()
-    CD_DIRS=()
-    CMDS=()
+    DEBUG=0
+
+  The following can be set in a configuration file as arrays, or you can set them
+  by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`
+
+    VARFILE_ARG=(${VARFILE_ARG[@]})
+    CD_DIRS=(${CD_DIRS[@]})
+    CMDS=(${CMDS[@]})
+    BACKENDVARFILE_ARG=(${BACKENDVARFILE_ARG[@]})
     PLAN_ARGS=(${PLAN_ARGS[@]})
     APPLY_ARGS=(${APPLY_ARGS[@]})
     PLANDESTROY_ARGS=(${PLANDESTROY_ARGS[@]})
@@ -53,7 +55,12 @@ _usage () {
     INIT_ARGS=(${INIT_ARGS[@]})
     IMPORT_ARGS=(${IMPORT_ARGS[@]})
     GET_ARGS=(${GET_ARGS[@]})
-    DEBUG=0
+
+  To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
+  file(s) have the following variables:
+
+    bucket          - The S3 bucket your Terraform state will live in
+    dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
 # Examples
  - Run plan, ask for approval, then apply the plan:
@@ -68,16 +75,19 @@ _usage () {
       approve \\
       apply
     \`\`\`
- - Run plan using a .terraformshrc file:
+ - Run plan using a \`.terraformshrc\` file, and override the PLAN_ARGS array:
     \`\`\`
-    $0 plan
+    $0 \\
+      -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
+      plan
     \`\`\`
 
 # Options
     -f FILE           A file passed to Terraform's -var-file option
     -b FILE           A file passed to Terraform's -backend-config option
     -C DIR            Change to directory DIR
-    -c file           Specify a '.terraformshrc' file to load
+    -c file           Specify a '.terraformshrc' configuration file to load
+    -E EXPR           Evaluate an expression in bash ('eval EXPR')
     -P                Do not use '.plan' files for plan/apply/destroy commands
     -v                Verbose mode
     -h                This help screen
@@ -285,11 +295,16 @@ _final_vars () {
 }
 
 _load_conf () {
-    # Load variables from a local config file if one wasn't passed via '-c'
-    if [ ${#CONF_FILE[@]} -lt 1 ] && [ -r ".terraformshrc" ] ; then
-        . "./.terraformshrc"
+    # Don't load the default configs if one was passed via '-c'
+    if [ ${#CONF_FILE[@]} -lt 1 ] ; then
+        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" ; do
+            [ -r "$f" ] && . "$f"
+        done
+    # If '-c' was passed, let the user pass only the configs they want to load.
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
         for conf in "${CONF_FILE[@]}" ; do
+            # NOTE: This is not a replacement for 'readlink -f'; if you want
+            # that behavior, pass the real file path yourself, don't rely on this.
             . "$(cd "$(dirname "$conf")" && pwd -P)/$(basename "$conf")"
         done
     fi
@@ -300,11 +315,12 @@ _load_conf () {
 
 SHOW_HELP=0
 declare -a BACKENDVARFILE_ARG=() VARFILE_ARG=() CMDS=() CD_DIRS=() CONF_FILE=()
-declare -a PLAN_ARGS APPLY_ARGS PLANDESTROY_ARGS DESTROY_ARGS REFRESH_ARGS INIT_ARGS IMPORT_ARGS GET_ARGS
+declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
+declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=()
 
 _default_vars
 
-while getopts "f:b:C:c:Phv" args ; do
+while getopts "f:b:C:c:E:Phv" args ; do
     case $args in
         f)
             VARFILE_ARG+=("-var-file" "$OPTARG") ;;
@@ -314,6 +330,8 @@ while getopts "f:b:C:c:Phv" args ; do
             CD_DIRS+=("$OPTARG") ;;
         c)
             CONF_FILE+=("$OPTARG") ;;
+        E)
+            eval "$OPTARG" ;;
         P)
             USE_PLANFILE=0 ;;
         h)
