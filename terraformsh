@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # terraformsh - Bash wrapper around Terraform
 # Copyright (C) 2020-2021 Peter Willis <peterwwillis@gmail.com>
 

@@ -1,3 +1,5 @@
+all: lint README.md
+
 lint:
 	shellcheck \
         --exclude=SC2086 \
