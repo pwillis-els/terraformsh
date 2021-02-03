@@ -36,6 +36,7 @@ _usage () {
   You can also override the following variables as environment variables or in a
   .terraformshrc file:
 
+    TERRAFORM=$terraform
     TF_PLANFILE=$TF_PLANFILE
     TF_DESTROY_PLANFILE=$TF_DESTROY_PLANFILE
     TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
@@ -249,9 +250,6 @@ _cmd_aws_bootstrap () {
 # ---------------------------------------------------------------------------------------- #
 # ------------------           load default variables          --------------------------- #
 
-# Override the TERRAFORM variable to change the name of the binary to run
-terraform="${TERRAFORM:-terraform}"
-
 # Help load AWS credentials, and silence some messages for automation.
 AWS_SDK_LOAD_CONFIG="${AWS_SDK_LOAD_CONFIG:-1}"
 TF_IN_AUTOMATION="${TF_IN_AUTOMATION:-1}"
@@ -276,6 +274,9 @@ declare -a GET_ARGS=("-update=true")
 # Load variables from a local config file
 [ -r ".terraformshrc" ] && . "./.terraformshrc"
 [ "${DEBUG:-0}" = "1" ] && set -x # enable tracing if DEBUG=1 was set
+
+# Override the TERRAFORM variable to change the name of the binary to run
+terraform="${TERRAFORM:-terraform}"
 
 if [ $USE_PLANFILE -eq 1 ] ; then
     PLAN_ARGS+=("-out=$TF_PLANFILE")
