@@ -4,13 +4,13 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.4"
+VERSION="0.6"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOUSAGE
     terraformsh v$VERSION
-    Usage: $0 [OPTIONS] COMMAND [..]
+    Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # About
   Terraformsh makes it easier to run Terraform in automation. It runs common
@@ -28,6 +28,13 @@ _usage () {
   You can specify most options and commands multiple times, as Terraform will allow
   you to pass options multiple times. This allows you to split up your configuration
   among multiple files/paths to keep it DRY.
+
+  The [TFVARS] arguments after [OPTIONS] allows you to pass file paths to Terrraform
+  config files. If the filename ends in '*.backend.tfvars' or '*.backend', it will
+  be used as a '-b' option. If the filename ends in '*.tfvars.json' or '*.tfvars',
+  it will be used as an '-f' option. This way you can use your shell's file globbing
+  to select any files in a directory with these file extensions, and they will be
+  passed to Terraform with the correct options.
 
   You can override the following defaults with environment variables, or set
   them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
@@ -81,6 +88,16 @@ _usage () {
       -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
       plan
     \`\`\`
+ - Run plan on a module, passing any configs in specific directories:
+   ```
+   $0 \
+      -C ../../modules/my-database/ \
+      *.tfvars \
+      *.backend.tfvars \
+      my-database/*.tfvars \
+      my-database/*.backend.tfvars \
+      plan
+   ```
 
 # Options
     -f FILE           A file passed to Terraform's -var-file option
@@ -137,7 +154,7 @@ _cmd_destroy () {
 # require init once it gets to the providers
 _cmd_validate () {
     _cmd_get
-    ( set -x; $TERRAFORM validate )
+    ( set -x; $TERRAFORM validate "${VARFILE_ARG[@]}" )
 }
 
 _cmd_get () {
@@ -305,10 +322,24 @@ _load_conf () {
         for conf in "${CONF_FILE[@]}" ; do
             # NOTE: This is not a replacement for 'readlink -f'; if you want
             # that behavior, pass the real file path yourself, don't rely on this.
-            . "$(cd "$(dirname "$conf")" && pwd -P)/$(basename "$conf")"
+            . "$(readlinkf "$conf")"
         done
     fi
+    return 0
 }
+readlinkf() {
+  [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
+  [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
+  while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
+    if [ ! "$t" = "${t%/*}" ]; then case $t in 
+      /*) cd -P "${t%/*}/"  || break ;;
+      *) cd -P "./${t%/*}"  || break ;;
+      esac; t=${t##*/}; 
+    fi
+  if [ ! -L "$t" ]; then t="${PWD%/}${t:+/}${t}"; printf '%s\n' "${t:-/}"; return 0; fi
+  link=$(ls -dl -- "$t" 2>/dev/null) || break; t=${link#*" $t -> "} ; done; return 1
+}
+
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
@@ -323,9 +354,9 @@ _default_vars
 while getopts "f:b:C:c:E:Phv" args ; do
     case $args in
         f)
-            VARFILE_ARG+=("-var-file" "$OPTARG") ;;
+            VARFILE_ARG+=("-var-file" "$(readlinkf "$OPTARG")") ;;
         b)
-            BACKENDVARFILE_ARG+=("-backend-config" "$OPTARG") ;;
+            BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$OPTARG")") ;;
         C)
             CD_DIRS+=("$OPTARG") ;;
         c)
@@ -354,12 +385,27 @@ shift $(($OPTIND-1))
 
 _load_conf
 
+[ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
+
+# If a config file (*.backend.tfvars, *.backend, *.tfvars, *.tfvars.json) was 
+# passed without the '-b' or '-f' option, add the correct options to use them
+declare -a TMP=()
+for c in "${CMDS[@]}" ; do
+    if [ $(expr "$c" : ".*\.backend\.tfvars$") -ne 0 -o $(expr "$c" : ".*\.backend$") -ne 0 ] ; then
+        BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$c")")
+    elif [ $(expr "$c" : ".*\.tfvars$") -ne 0 -o $(expr "$c" : ".*\.tfvars\.json$") -ne 0 ] ; then
+        VARFILE_ARG+=("-var-file" "$(readlinkf "$c")")
+    else
+        TMP+=("$c")
+    fi
+done
+CMDS=("${TMP[@]}")
+
 # Change to directories
 for dir in "${CD_DIRS[@]}" ; do
     cd "$dir"
 done
 
-[ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
 if [ ${#CMDS[@]} -lt 1 ] ; then
     echo "$0: Error: No COMMAND was specified"
     echo ""
