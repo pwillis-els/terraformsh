@@ -13,6 +13,7 @@ _usage () {
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # About
+
   Terraformsh makes it easier to run Terraform in automation. It runs common
   Terraform commands for you in order, passing the right arguments as needed.
   You can use configuration files to pre-set options and override them
@@ -25,6 +26,7 @@ _usage () {
  - AWS CLI (only for aws_bootstrap command)
 
 # Usage
+
   You can specify most options and commands multiple times, as Terraform will allow
   you to pass options multiple times. This allows you to split up your configuration
   among multiple files/paths to keep it DRY.
@@ -38,7 +40,7 @@ _usage () {
 
   You can override the following defaults with environment variables, or set
   them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
-  and \`.terraformshrc\`):
+  \`.terraformshrc\`, \`terraformsh.conf\`):
 
     TERRAFORM=$TERRAFORM
     TF_PLANFILE=$TF_PLANFILE
@@ -48,7 +50,7 @@ _usage () {
     DEBUG=0
     INHERIT_TFFILES=$INHERIT_TFFILES
 
-  The following can be set in a configuration file as arrays, or you can set them
+  The following can be set in the config file as arrays, or you can set them
   by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`
 
     VARFILE_ARG=(${VARFILE_ARG[@]})
@@ -72,9 +74,10 @@ _usage () {
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
 # Examples
+
  - Run plan, ask for approval, then apply the plan:
     \`\`\`
-    $0 \\
+    \$ $0 \\
       -f ../terraform.tfvars.json \\
       -f override.auto.tfvars.json \\
       -b ../backend.tfvars \\
@@ -84,22 +87,36 @@ _usage () {
       approve \\
       apply
     \`\`\`
+
  - Run plan using a \`.terraformshrc\` file, and override the PLAN_ARGS array:
     \`\`\`
-    $0 \\
+    \$ $0 \\
       -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
       plan
     \`\`\`
+
  - Run plan on a module, passing any configs in specific directories:
     \`\`\`
-    $0 \
-       -C ../../modules/my-database/ \
-       *.tfvars \
-       *.backend.tfvars \
-       my-database/*.tfvars \
-       my-database/*.backend.tfvars \
+    \$ $0 \\
+       -C ../../modules/my-database/ \\
+       *.tfvars \\
+       *.backend.tfvars \\
+       my-database/*.tfvars \\
+       my-database/*.backend.tfvars \\
        plan
     \`\`\`
+
+ - Run plan on a module, implicitly loading configuration files from parent directories:
+    \`\`\`
+    \$ pwd
+    /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+    \$ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+    \$ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+    \$ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+    \$ echo 'database_name = "some database"' > terraform.sh.tfvars
+    \$ $0 plan
+    \`\`\`
+
 
 # Options
     -f FILE           A file passed to Terraform's -var-file option
@@ -323,7 +340,7 @@ _final_vars () {
 _load_conf () {
     # Don't load the default configs if one was passed via '-c'
     if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" ; do
+        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "terraformsh.conf" ; do
             [ -r "$f" ] && . "$f"
         done
     # If '-c' was passed, let the user pass only the configs they want to load.
