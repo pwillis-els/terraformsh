@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.6"
+VERSION="0.7"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -46,6 +46,7 @@ _usage () {
     TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
     USE_PLANFILE=$USE_PLANFILE
     DEBUG=0
+    INHERIT_TFFILES=$INHERIT_TFFILES
 
   The following can be set in a configuration file as arrays, or you can set them
   by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`
@@ -106,6 +107,9 @@ _usage () {
     -C DIR            Change to directory DIR
     -c file           Specify a '.terraformshrc' configuration file to load
     -E EXPR           Evaluate an expression in bash ('eval EXPR')
+    -I                Disables automatically loading any 'terraform.sh.tfvars',
+                      'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                      found while recursively searching parent directories.
     -P                Do not use '.plan' files for plan/apply/destroy commands
     -v                Verbose mode
     -h                This help screen
@@ -285,6 +289,7 @@ _default_vars () {
     TF_PLANFILE="${TF_PLANFILE:-terraform.plan}"
     TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-terraform-destroy.plan}"
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-terraform-bootstrap.plan}"
+
     USE_PLANFILE="${USE_PLANFILE:-1}"
     TERRAFORM="${TERRAFORM:-terraform}"
     PLAN_ARGS=("-input=false")
@@ -296,6 +301,8 @@ _default_vars () {
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
     STATE_ARGS=("-input=false")
+
+    INHERIT_TFFILES=1
 }
 _final_vars () {
     if [ $USE_PLANFILE -eq 1 ] ; then
@@ -330,6 +337,11 @@ _load_conf () {
     return 0
 }
 _process_cmds () {
+    if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
+        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars" )
+        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars.json" )
+        while read -r LINE ; do BACKENDVARFILE_ARG+=("-backend-config" "$LINE") ; done < <( _rfindfiles "backend.sh.tfvars" )
+    fi
     for c in "${CMDS[@]}" ; do
         # If a config file (*.backend.tfvars, *.backend, *.tfvars, *.tfvars.json) was 
         # passed without the '-b' or '-f' option, add the correct options to use them
@@ -363,19 +375,28 @@ _process_cmds () {
         exit 1
     fi
 }
-readlinkf() {
-  [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
-  [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
-  while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
-    if [ ! "$t" = "${t%/*}" ]; then case $t in 
-      /*) cd -P "${t%/*}/"  || break ;;
-      *) cd -P "./${t%/*}"  || break ;;
-      esac; t=${t##*/}; 
-    fi
-  if [ ! -L "$t" ]; then t="${PWD%/}${t:+/}${t}"; printf '%s\n' "${t:-/}"; return 0; fi
-  link=$(ls -dl -- "$t" 2>/dev/null) || break; t=${link#*" $t -> "} ; done; return 1
+readlinkf () {
+    [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
+    [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
+    while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
+      if [ ! "$t" = "${t%/*}" ]; then case $t in 
+        /*) cd -P "${t%/*}/"  || break ;;
+        *) cd -P "./${t%/*}"  || break ;;
+        esac; t=${t##*/}; fi
+      if [ ! -L "$t" ]; then t="${PWD%/}${t:+/}${t}"; printf '%s\n' "${t:-/}"; return 0; fi
+      link=$(ls -dl -- "$t" 2>/dev/null) || break; t=${link#*" $t -> "}
+    done; return 1
 }
-
+_rfindfiles () {
+    local file="$1"
+    cwd="$(pwd)"
+    while [ ! "$(dirname "$cwd")" = "/" ] ; do
+        if [ -r "$cwd/$file" ] ; then
+            printf "%s\n" "$cwd/$file"
+        fi
+        cwd="$(dirname "$cwd")"
+    done
+}
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
@@ -387,24 +408,17 @@ declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:Phv" args ; do
+while getopts "f:b:C:c:E:IPhv" args ; do
     case $args in
-        f)
-            VARFILE_ARG+=("-var-file" "$(readlinkf "$OPTARG")") ;;
-        b)
-            BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$OPTARG")") ;;
-        C)
-            CD_DIRS+=("$OPTARG") ;;
-        c)
-            CONF_FILE+=("$OPTARG") ;;
-        E)
-            eval "$OPTARG" ;;
-        P)
-            USE_PLANFILE=0 ;;
-        h)
-            SHOW_HELP=1 ;;
-        v)
-            export DEBUG=1 ;;
+        f)  VARFILE_ARG+=("-var-file" "$(readlinkf "$OPTARG")") ;;
+        b)  BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$OPTARG")") ;;
+        C)  CD_DIRS+=("$OPTARG") ;;
+        c)  CONF_FILE+=("$OPTARG") ;;
+        E)  eval "$OPTARG" ;;
+        I)  INHERIT_TFFILES=0 ;;
+        P)  USE_PLANFILE=0 ;;
+        h)  SHOW_HELP=1 ;;
+        v)  export DEBUG=1 ;;
         *)
             echo "$0: Error: unknown option $args" ;
             exit 1 ;;
