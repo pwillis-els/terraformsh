@@ -442,6 +442,7 @@ _process_cmds
 
 # Change to directories
 for dir in "${CD_DIRS[@]}" ; do
+    printf "+ cd \"%s\"\n" "$dir" 1>&2
     cd "$dir"
 done
 
