@@ -150,7 +150,8 @@ _usage () {
 EOUSAGE
     exit 1
 }
-declare -a VALID_COMMANDS=("plan" "apply" "plan_destroy" "destroy" "shell" "refresh" "validate" "init" "clean" "clean_modules" "approve" "aws_bootstrap" "import" "state")
+declare -a TF_COMMANDS=(0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint untaint validate version workspace)
+declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_bootstrap)
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           functions                       --------------------------- #
@@ -353,35 +354,36 @@ _load_conf () {
     fi
     return 0
 }
-_process_cmds () {
+_load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
         while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars" )
         while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars.json" )
         while read -r LINE ; do BACKENDVARFILE_ARG+=("-backend-config" "$LINE") ; done < <( _rfindfiles "backend.sh.tfvars" )
     fi
-    for c in "${CMDS[@]}" ; do
+}
+_process_cmds () {
+    declare -a tmpcmds=()
+    for cmd in "${CMDS[@]}" ; do
         # If a config file (*.backend.tfvars, *.backend, *.tfvars, *.tfvars.json) was 
         # passed without the '-b' or '-f' option, add the correct options to use them
-        if [ $(expr "$c" : ".*\.backend\.tfvars$") -ne 0 -o $(expr "$c" : ".*\.backend$") -ne 0 ] ; then
-            BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$c")")
-        elif [ $(expr "$c" : ".*\.tfvars$") -ne 0 -o $(expr "$c" : ".*\.tfvars\.json$") -ne 0 ] ; then
-            VARFILE_ARG+=("-var-file" "$(readlinkf "$c")")
+        if [ $(expr "$cmd" : ".*\.backend\.tfvars$") -ne 0 -o $(expr "$cmd" : ".*\.backend$") -ne 0 ] ; then
+            BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$cmd")")
+        elif [ $(expr "$cmd" : ".*\.tfvars$") -ne 0 -o $(expr "$cmd" : ".*\.tfvars\.json$") -ne 0 ] ; then
+            VARFILE_ARG+=("-var-file" "$(readlinkf "$cmd")")
         else
             valid_cmd=0
-            for cmd in "${VALID_COMMANDS[@]}" ; do
-                if [ "$cmd" = "$c" ] ; then
-                  TMPCMDS+=("$c") 
-                  valid_cmd=1
-                  break
+            for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
+                if [ "$possiblecmd" = "$cmd" ] ; then
+                  tmpcmds+=("$cmd") ; valid_cmd=1 ; break
                 fi
             done
             if [ $valid_cmd -eq 0 ] ; then
-                echo "$0: WARNING: '$c' is not a valid command; passing as an option instead"
-                OPTS+=("$c")
+                echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead"
+                OPTS+=("$cmd")
             fi
         fi
     done
-    CMDS=("${TMPCMDS[@]}")
+    CMDS=("${tmpcmds[@]}")
     if [ ${#CMDS[@]} -lt 1 ] ; then
         echo "$0: Error: No COMMAND was specified"
         echo ""
@@ -450,11 +452,12 @@ shift $(($OPTIND-1))
 
 [ "${DEBUG:-0}" = "1" ] && set -x
 
+_load_parent_tffiles
 _load_conf
 
 [ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
 
-declare -a TMPCMDS=() OPTS=()
+declare -a OPTS=()
 _process_cmds
 
 # Change to directories
