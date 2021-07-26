@@ -8,17 +8,21 @@ VERSION="0.7"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
-    cat <<EOUSAGE
+    cat <<EOTUSAGE
     terraformsh v$VERSION
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # About
+  Terraformsh makes it easier to run Terraform by taking care of things you might
+  normally need to do by hand. Unline other Terraform wrappers like Terragrunt,
+  nothing is done outside of the stock Terraform functionality. There is no custom
+  DSL to learn, no code generated. But in practice, you can use Terraformsh the
+  way you would use Terragrut to keep your code and configuration DRY.
 
-  Terraformsh makes it easier to run Terraform in automation. It runs common
-  Terraform commands for you in order, passing the right arguments as needed.
-  You can use configuration files to pre-set options and override them
-  via the environment and command-line. And it defaults to good conventions,
-  like using .plan files for changes.
+  Terraformsh will detect configuration files in order to control operation in
+  an immutable, version-controlled, infrastructure-as-code way. Overrides can
+  also be passed via environment variables and command-line options. Good
+  conventions, like using .plan files for changes, are done by default.
 
 # Requirements
  - Bash (v3+)
@@ -26,20 +30,31 @@ _usage () {
  - AWS CLI (only for aws_bootstrap command)
 
 # Usage
+  Change to the directory of a Terraform module and run \`terraformsh\` with any
+  Terraform commands and arguments you'd normally use. If you run a command
+  like \`terraformsh plan\`, Terraformsh will first run \`terraform validate\`,
+  which will first run \`terraform get\`, which will first run \`terraform init\`.
+  Each time, Terraformsh will pass default options that you _probably_ want, but
+  you can override these options multiple ways.
 
-  You can specify most options and commands multiple times, as Terraform will allow
-  you to pass options multiple times. This allows you to split up your configuration
-  among multiple files/paths to keep it DRY.
+  Terraformsh also supports passing multiple commands in one command-line (see
+  *Examples* section) as well as multiple of the same option.
 
-  The [TFVARS] arguments after [OPTIONS] allows you to pass file paths to Terrraform
-  config files. If the filename ends in '*.backend.tfvars' or '*.backend', it will
-  be used as a '-b' option. If the filename ends in '*.tfvars.json' or '*.tfvars',
-  it will be used as an '-f' option. This way you can use your shell's file globbing
-  to select any files in a directory with these file extensions, and they will be
-  passed to Terraform with the correct options.
+  You can also tell Terraformsh to change to a specific directory before running
+  commands, so you don't have to do it yourself. This can be put into a config
+  file in a local directory, making it easy to separate your modules and config
+  files.
 
-  You can override the following defaults with environment variables, or set
-  them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
+  You can pass *TFVARS* ('*.backend.tfvars', '*.backend.sh.tfvars', '*.tfvars.json',
+  '*.tfvars', '*.sh.tfvars.json', '*.sh.tfvars') after *OPTIONS* to pass these
+  files to Terraform commands as needed. Or you can specify them using their 
+  accompanying OPTION (see below). Finally, if there exist files in any parent
+  directory named \`$TF_BACKEND_AUTO_CONFIG\`, \`$TF_AUTO_CONFIG.json\`, or
+  \`$TF_AUTO_CONFIG\`, those will be loaded automatically as well (this
+  behavior can be disabled).
+
+  You can override the following default variables with environment variables, or
+  set them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
   \`.terraformshrc\`, \`terraformsh.conf\`):
 
     TERRAFORM=$TERRAFORM
@@ -75,7 +90,7 @@ _usage () {
 
 # Examples
 
- - Run plan, ask for approval, then apply the plan:
+ - Run 'plan', ask for approval, then 'apply' the plan:
     \`\`\`
     \$ $0 \\
       -f ../terraform.tfvars.json \\
@@ -88,14 +103,14 @@ _usage () {
       apply
     \`\`\`
 
- - Run plan using a \`.terraformshrc\` file, and override the PLAN_ARGS array:
+ - Run 'plan' using a \`.terraformshrc\` file, but override the PLAN_ARGS array:
     \`\`\`
     \$ $0 \\
       -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
       plan
     \`\`\`
 
- - Run plan on a module, passing any configs in specific directories:
+ - Run 'plan' on a module, passing configs the shell finds in these directories:
     \`\`\`
     \$ $0 \\
        -C ../../modules/my-database/ \\
@@ -106,7 +121,7 @@ _usage () {
        plan
     \`\`\`
 
- - Run plan on a module, implicitly loading configuration files from parent directories:
+ - Run 'plan' on a module, implicitly loading configuration files from parent directories:
     \`\`\`
     \$ pwd
     /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
@@ -128,6 +143,7 @@ _usage () {
                       'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
                       found while recursively searching parent directories.
     -P                Do not use '.plan' files for plan/apply/destroy commands
+    -N                Dry-run mode (don't execute anything)
     -v                Verbose mode
     -h                This help screen
 
@@ -147,7 +163,7 @@ _usage () {
                       If found, creates the bucket and table and initializes your Terraform state with them.
     import            Run \`terraform import [...]\`
     state             RUn \`terraform state [...]\`
-EOUSAGE
+EOTUSAGE
     exit 1
 }
 declare -a TF_COMMANDS=(0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint untaint validate version workspace)
@@ -158,41 +174,41 @@ declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_
 
 _cmd_plan () {
     _cmd_validate
-    ( set -x; $TERRAFORM plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" )
+    _runcmd $TERRAFORM plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}"
 }
 _cmd_apply () {
     _cmd_init
-    ( set -x; $TERRAFORM apply "${APPLY_ARGS[@]}" ) && rm -f "$TF_PLANFILE"
+    _runcmd $TERRAFORM apply "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     _cmd_validate
-    ( set -x; $TERRAFORM plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" )
+    _runcmd $TERRAFORM plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}"
 }
 _cmd_destroy () {
     _cmd_init
-    ( set -x; $TERRAFORM apply "${DESTROY_ARGS[@]}"  ) && rm -f "$TF_DESTROY_PLANFILE"
+    _runcmd $TERRAFORM apply "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
     _cmd_get
-    ( set -x; $TERRAFORM validate "${VARFILE_ARG[@]}" )
+    _runcmd $TERRAFORM validate "${VARFILE_ARG[@]}"
 }
 _cmd_get () {
     _cmd_init # 'terraform get' does nothing if we have not initialized terraform
-    ( set -x; $TERRAFORM get "${GET_ARGS[@]}" )
+    _runcmd $TERRAFORM get "${GET_ARGS[@]}"
 }
 _cmd_refresh() {
     _cmd_init
-    ( set -x; $TERRAFORM refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" )
+    _runcmd $TERRAFORM refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
-    ( set -x; $TERRAFORM init "${INIT_ARGS[@]}" )
+    _runcmd $TERRAFORM init "${INIT_ARGS[@]}"
 }
 _cmd_import () {
-    ( set -x; $TERRAFORM import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@" )
+    _runcmd $TERRAFORM import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
 }
 _cmd_state () {
     # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
@@ -202,25 +218,25 @@ _cmd_state () {
         _cmd="$1"; shift
         _args+=("${_opts[@]:1}")
     fi
-    ( set -x; $TERRAFORM state $_cmd "${STATE_ARGS[@]}" "${_args[@]}" )
+    _runcmd $TERRAFORM state $_cmd "${STATE_ARGS[@]}" "${_args[@]}"
 }
 # The following allows you to do something like 'terraformsh plan shell' to drop
 # into a shell in the working directory of the root module to be used, with
 # everything ready to run 'terraform' commands (such as 'terraform state list')
 _cmd_shell () {
     _cmd_get
-    bash -i -l
+    _runcmd bash -i -l
 }
 # This is basically in case the directory structure where this runs was changed
 # after an initial terraform run. Terraform sucks at cleaning up broken symlinks
 # and its modules.json, so unless we want to have a *ton* of complex logic here,
 # just blow modules away every time.
 _cmd_clean_modules () {
-    ( set -x; rm -v -rf .terraform/modules/* )
+    _runcmd rm -v -rf .terraform/modules/*
 }
 _cmd_clean () {
     _cmd_clean_modules
-    ( set -x; rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true )
+    _runcmd rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true
 }
 _cmd_approve () {
     echo ""
@@ -267,7 +283,7 @@ _cmd_aws_bootstrap () {
         || true )"
     if [ -n "$BUCKET_REGION" ] ; then
         echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..."
-        $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
+        _runcmd $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
     else
         echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..."
     fi
@@ -277,17 +293,17 @@ _cmd_aws_bootstrap () {
         | jq -re "select(.TableNames | index(\"$BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
         echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..."
-        $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
+        _runcmd $TERRAFORM import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
     else
         echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..."
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
-    $TERRAFORM plan -input=false "${VARFILE_ARG[@]}" \
+    _runcmd $TERRAFORM plan -input=false "${VARFILE_ARG[@]}" \
         -target aws_dynamodb_table.terraform_lock \
         -target aws_s3_bucket.terraform_state \
         -out "$TF_BOOTSTRAP_PLANFILE"
-    $TERRAFORM apply -input=false "$TF_BOOTSTRAP_PLANFILE"
+    _runcmd $TERRAFORM apply -input=false "$TF_BOOTSTRAP_PLANFILE"
 
     # Set an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
@@ -295,7 +311,7 @@ _cmd_aws_bootstrap () {
     echo "Sleeping 60 seconds before querying bucket again ..."
     sleep 60
 
-    ( set -x ; $TERRAFORM init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}" )
+    _runcmd $TERRAFORM init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
 }
 _default_vars () {
     # Help load AWS credentials, and silence some messages for automation.
@@ -308,8 +324,15 @@ _default_vars () {
     TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-terraform-destroy.plan}"
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-terraform-bootstrap.plan}"
 
+    # Override these to change the configs that are automatically loaded if
+    # they exist in any parent directories (disable with the '-I' option).
+    TF_BACKEND_AUTO_CONFIG="backend.sh.tfvars"
+    TF_AUTO_CONFIG="terraform.sh.tfvars"
+    # This enables the functionality by default
+    INHERIT_TFFILES=1
+
     USE_PLANFILE="${USE_PLANFILE:-1}"
-    TERRAFORM="${TERRAFORM:-terraform}"
+    TERRAFORM="${TERRAFORM:-terraform}" # the terraform executable
     PLAN_ARGS=("-input=false")
     APPLY_ARGS=("-input=false")
     PLANDESTROY_ARGS=("-input=false")
@@ -319,8 +342,6 @@ _default_vars () {
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
     STATE_ARGS=("-input=false")
-
-    INHERIT_TFFILES=1
 }
 _final_vars () {
     if [ $USE_PLANFILE -eq 1 ] ; then
@@ -356,20 +377,28 @@ _load_conf () {
 }
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
-        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars" )
-        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "terraform.sh.tfvars.json" )
-        while read -r LINE ; do BACKENDVARFILE_ARG+=("-backend-config" "$LINE") ; done < <( _rfindfiles "backend.sh.tfvars" )
+        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "$TF_AUTO_CONFIG" )
+        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "$TF_AUTO_CONFIG.json" )
+        while read -r LINE ; do BACKENDVARFILE_ARG+=("-backend-config" "$LINE") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG" )
     fi
 }
 _process_cmds () {
     declare -a tmpcmds=()
     for cmd in "${CMDS[@]}" ; do
-        # If a config file (*.backend.tfvars, *.backend, *.tfvars, *.tfvars.json) was 
-        # passed without the '-b' or '-f' option, add the correct options to use them
-        if [ $(expr "$cmd" : ".*\.backend\.tfvars$") -ne 0 -o $(expr "$cmd" : ".*\.backend$") -ne 0 ] ; then
-            BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$cmd")")
-        elif [ $(expr "$cmd" : ".*\.tfvars$") -ne 0 -o $(expr "$cmd" : ".*\.tfvars\.json$") -ne 0 ] ; then
-            VARFILE_ARG+=("-var-file" "$(readlinkf "$cmd")")
+        # If a config file was passed as a command, add them as options
+        if    [ $(expr "$cmd" : ".*\.backend\.tfvars$") -ne 0 \
+                -o $(expr "$cmd" : ".*\.backend\.sh\.tfvars$") -ne 0 \
+                -o $(expr "$cmd" : ".*\.backend$") -ne 0 \
+              ]
+        then  BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$cmd")")
+
+        elif  [ $(expr "$cmd" : ".*\.tfvars$") -ne 0 \
+                -o $(expr "$cmd" : ".*\.sh\.tfvars$") -ne 0 \
+                -o $(expr "$cmd" : ".*\.tfvars\.json$") -ne 0 \
+                -o $(expr "$cmd" : ".*\.sh\.tfvars\.json$") -ne 0 \
+              ]
+        then  VARFILE_ARG+=("-var-file" "$(readlinkf "$cmd")")
+
         else
             valid_cmd=0
             for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
@@ -416,6 +445,12 @@ _rfindfiles () {
         cwd="$(dirname "$cwd")"
     done
 }
+_runcmd () {
+    echo "+ $*" 1>&2
+    if [ ! "${DRYRUN:-0}" = "1" ] ; then
+        "$@"
+    fi
+}
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
@@ -427,7 +462,7 @@ declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:IPhv" args ; do
+while getopts "f:b:C:c:E:IPNhv" args ; do
     case $args in
         f)  VARFILE_ARG+=("-var-file" "$(readlinkf "$OPTARG")") ;;
         b)  BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$OPTARG")") ;;
@@ -436,6 +471,7 @@ while getopts "f:b:C:c:E:IPhv" args ; do
         E)  eval "$OPTARG" ;;
         I)  INHERIT_TFFILES=0 ;;
         P)  USE_PLANFILE=0 ;;
+        N)  DRYRUN=1 ;;
         h)  SHOW_HELP=1 ;;
         v)  export DEBUG=1 ;;
         *)
