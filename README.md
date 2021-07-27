@@ -1,6 +1,11 @@
     terraformsh v0.7
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
+# Requirements
+ - Bash (v3+)
+ - Terraform
+ - AWS CLI (only for aws_bootstrap command)
+
 # About
   Terraformsh makes it easier to run Terraform by taking care of things you might
   normally need to do by hand. Unlike Terragrunt, the script assumes only the
@@ -13,12 +18,46 @@
   Overrides can be passed by environment and command-line options. Good 
   conventions like using .plan files for changes are also the default.
 
-# Requirements
- - Bash (v3+)
- - Terraform
- - AWS CLI (only for aws_bootstrap command)
+## Examples
 
-# Usage
+ - Run 'plan', ask for approval, then 'apply' the plan:
+
+    $ ./terraformsh \
+      -f ../terraform.tfvars.json -f override.auto.tfvars.json \
+      -b ../backend.tfvars -b backend-key.tfvars \
+      -C ../../../rootmodules/aws-infra-region/ \
+      plan approve apply
+
+ - Run 'plan' using a `.terraformshrc` file, but override the *PLAN_ARGS* array:
+
+    $ ./terraformsh \
+      -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
+      plan
+
+
+ - Run 'plan' on a module, passing configs the shell finds in these directories:
+
+    $ ./terraformsh \
+       -C ../../modules/my-database/ \
+       *.tfvars \
+       *.backend.tfvars \
+       my-database/*.tfvars \
+       my-database/*.backend.tfvars \
+       plan
+
+
+ - Run 'plan' on a module, implicitly loading configuration files from parent directories:
+
+    $ pwd
+    /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+    $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+    $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+    $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+    $ echo 'database_name = "some database"' > terraform.sh.tfvars
+    $ terraformsh plan
+
+
+## Details
 
   Change to the directory of a Terraform module and run `terraformsh` with any
   Terraform commands and arguments you'd normally use. Terraformsh will run any
@@ -77,50 +116,7 @@
     bucket          - The S3 bucket your Terraform state will live in
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
-# Examples
-
- - Run 'plan', ask for approval, then 'apply' the plan:
-    ```
-    $ ./terraformsh \
-      -f ../terraform.tfvars.json \
-      -f override.auto.tfvars.json \
-      -b ../backend.tfvars \
-      -b backend-key.tfvars \
-      -C ../../../rootmodules/aws-infra-region/ \
-      plan \
-      approve \
-      apply
-    ```
-
- - Run 'plan' using a `.terraformshrc` file, but override the *PLAN_ARGS* array:
-    ```
-    $ ./terraformsh \
-      -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
-      plan
-    ```
-
- - Run 'plan' on a module, passing configs the shell finds in these directories:
-    ```
-    $ ./terraformsh \
-       -C ../../modules/my-database/ \
-       *.tfvars \
-       *.backend.tfvars \
-       my-database/*.tfvars \
-       my-database/*.backend.tfvars \
-       plan
-    ```
-
- - Run 'plan' on a module, implicitly loading configuration files from parent directories:
-    ```
-    $ pwd
-    /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
-    $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
-    $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
-    $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
-    $ echo 'database_name = "some database"' > terraform.sh.tfvars
-    $ terraformsh plan
-    ```
-
+---
 
 # Options
 
