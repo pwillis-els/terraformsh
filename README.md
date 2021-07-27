@@ -3,15 +3,15 @@
 
 # About
   Terraformsh makes it easier to run Terraform by taking care of things you might
-  normally need to do by hand. Unline other Terraform wrappers like Terragrunt,
-  nothing is done outside of the stock Terraform functionality. There is no custom
-  DSL to learn, no code generated. But in practice, you can use Terraformsh the
-  way you would use Terragrut to keep your code and configuration DRY.
+  normally need to do by hand. Unlike Terragrunt, the script assumes only the
+  default behavior of Terraform and other tools; there is no DSL or code
+  generation. However, you can still keep your code and configuration DRY with
+  this tool, and reduce the overall complexity needed to maintain your Terraform.
 
-  Terraformsh will detect configuration files in order to control operation in
-  an immutable, version-controlled, infrastructure-as-code way. Overrides can
-  also be passed via environment variables and command-line options. Good
-  conventions, like using .plan files for changes, are done by default.
+  Terraformsh will detect and use configuration files automatically, making it
+  easy to perform immutable, version-controlled, infrastructure-as-code changes.
+  Overrides can be passed by environment and command-line options. Good 
+  conventions like using .plan files for changes are also the default.
 
 # Requirements
  - Bash (v3+)
@@ -19,39 +19,39 @@
  - AWS CLI (only for aws_bootstrap command)
 
 # Usage
-  Change to the directory of a Terraform module and run `terraformsh` with any
-  Terraform commands and arguments you'd normally use. If you run a command
-  like `terraformsh plan`, Terraformsh will first run `terraform validate`,
-  which will first run `terraform get`, which will first run `terraform init`.
-  Each time, Terraformsh will pass default options that you _probably_ want, but
-  you can override these options multiple ways.
 
-  Terraformsh also supports passing multiple commands in one command-line (see
+  Change to the directory of a Terraform module and run `terraformsh` with any
+  Terraform commands and arguments you'd normally use. Terraformsh will run any
+  'dependent' Terraform commands first; if you run `terraformsh plan`, 
+  Terraformsh will first run `terraform validate`, which will first run
+  `terraform get`, which will first run `terraform init`.
+  Each time Terraformsh passes the correct options as necessary (but you can
+  override them multiple ways).
+
+  Terraformsh supports passing multiple commands in one command-line (see
   *Examples* section) as well as multiple of the same option.
 
-  You can also tell Terraformsh to change to a specific directory before running
-  commands, so you don't have to do it yourself. This can be put into a config
-  file in a local directory, making it easy to separate your modules and config
-  files.
+  You can configure Terraformsh to change to a module's directory before running
+  commands so you don't have to do it yourself (`-C` option).
 
-  You can pass *TFVARS* ('*.backend.tfvars', '*.backend.sh.tfvars', '*.tfvars.json',
-  '*.tfvars', '*.sh.tfvars.json', '*.sh.tfvars') after *OPTIONS* to pass these
+  You can pass *TFVARS* ('\*.backend.tfvars', '\*.backend.sh.tfvars', '\*.tfvars.json',
+  '\*.tfvars', '\*.sh.tfvars.json', '\*.sh.tfvars') after *OPTIONS* to pass these
   files to Terraform commands as needed. Or you can specify them using their 
-  accompanying OPTION (see below). Finally, if there exist files in any parent
+  accompanying *OPTION* (see below). Finally, if there exist files in any parent
   directory named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or
-  `terraform.sh.tfvars`, those will be loaded automatically as well (this
-  behavior can be disabled).
+  `terraform.sh.tfvars`, those will be loaded automatically as well (disabled with
+  `-I` option).
 
   You can override the following default variables with environment variables, or
   set them in a bash configuration file (`/etc/terraformsh`, `~/.terraformshrc`,
   `.terraformshrc`, `terraformsh.conf`):
 
+    DEBUG=0
     TERRAFORM=terraform
     TF_PLANFILE=terraform.plan
     TF_DESTROY_PLANFILE=terraform-destroy.plan
     TF_BOOTSTAP_PLANFILE=terraform-bootstrap.plan
     USE_PLANFILE=1
-    DEBUG=0
     INHERIT_TFFILES=1
 
   The following can be set in the config file as arrays, or you can set them
@@ -92,7 +92,7 @@
       apply
     ```
 
- - Run 'plan' using a `.terraformshrc` file, but override the PLAN_ARGS array:
+ - Run 'plan' using a `.terraformshrc` file, but override the *PLAN_ARGS* array:
     ```
     $ ./terraformsh \
       -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
@@ -118,11 +118,15 @@
     $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
     $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
     $ echo 'database_name = "some database"' > terraform.sh.tfvars
-    $ ./terraformsh plan
+    $ terraformsh plan
     ```
 
 
 # Options
+
+  Pass these *OPTIONS* before any others (see examples); do not pass them after
+  *TFVARS* or *COMMAND*s.
+
     -f FILE           A file passed to Terraform's -var-file option
     -b FILE           A file passed to Terraform's -backend-config option
     -C DIR            Change to directory DIR
@@ -137,6 +141,10 @@
     -h                This help screen
 
 # Commands
+
+  The following are commands that terraformsh provides wrappers for. Commands
+  not listed here will be passed to terraform verbatim, along with any options.
+
     plan              Run init, get, validate, and `terraform plan -out terraform.plan`
     apply             Run init, get, validate, and `terraform apply terraform.plan`
     plan_destroy      Run init, get, validate, and `terraform plan -destroy -out=terraform-destroy.plan`
