@@ -220,6 +220,9 @@ _cmd_state () {
     fi
     _runcmd $TERRAFORM state $_cmd "${STATE_ARGS[@]}" "${_args[@]}"
 }
+_cmd_catchall () {
+    _runcmd $TERRAFORM "$@"
+}
 # The following allows you to do something like 'terraformsh plan shell' to drop
 # into a shell in the working directory of the root module to be used, with
 # everything ready to run 'terraform' commands (such as 'terraform state list')
@@ -505,5 +508,9 @@ done
 _final_vars
 
 for name in "${CMDS[@]}" ; do
-    _cmd_"$name" "${OPTS[@]}"
+    if command -v _cmd_"$name" ; then
+        _cmd_"$name" "${OPTS[@]}"
+    else 
+        _cmd_catchall "$name" "${OPTS[@]}"
+    fi
 done
