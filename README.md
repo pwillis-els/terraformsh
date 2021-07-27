@@ -22,39 +22,39 @@
 
  - Run 'plan', ask for approval, then 'apply' the plan:
 
-    $ ./terraformsh \
-      -f ../terraform.tfvars.json -f override.auto.tfvars.json \
-      -b ../backend.tfvars -b backend-key.tfvars \
-      -C ../../../rootmodules/aws-infra-region/ \
-      plan approve apply
+        $ ./terraformsh \
+          -f ../terraform.tfvars.json -f override.auto.tfvars.json \
+          -b ../backend.tfvars -b backend-key.tfvars \
+          -C ../../../rootmodules/aws-infra-region/ \
+          plan approve apply
 
  - Run 'plan' using a `.terraformshrc` file, but override the *PLAN_ARGS* array:
 
-    $ ./terraformsh \
-      -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
-      plan
+      $ ./terraformsh \
+        -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
+        plan
 
 
  - Run 'plan' on a module, passing configs the shell finds in these directories:
 
-    $ ./terraformsh \
-       -C ../../modules/my-database/ \
-       *.tfvars \
-       *.backend.tfvars \
-       my-database/*.tfvars \
-       my-database/*.backend.tfvars \
-       plan
+      $ ./terraformsh \
+         -C ../../modules/my-database/ \
+         *.tfvars \
+         *.backend.tfvars \
+         my-database/*.tfvars \
+         my-database/*.backend.tfvars \
+         plan
 
 
  - Run 'plan' on a module, implicitly loading configuration files from parent directories:
 
-    $ pwd
-    /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
-    $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
-    $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
-    $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
-    $ echo 'database_name = "some database"' > terraform.sh.tfvars
-    $ terraformsh plan
+      $ pwd
+      /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+      $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+      $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+      $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+      $ echo 'database_name = "some database"' > terraform.sh.tfvars
+      $ terraformsh plan
 
 
 ## Details
