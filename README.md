@@ -20,41 +20,42 @@
 
 ## Examples
 
+ - Run 'plan' in a root module directory, just like Terraform:
+
+       $ cd rootmodules/aws-infra-region/
+       $ terraformsh plan
+
  - Run 'plan', ask for approval, then 'apply' the plan:
 
-        $ ./terraformsh \
-          -f ../terraform.tfvars.json -f override.auto.tfvars.json \
-          -b ../backend.tfvars -b backend-key.tfvars \
-          -C ../../../rootmodules/aws-infra-region/ \
+        $ terraformsh -C rootmodules/aws-infra-region/ \
+          -f terraform.tfvars.json \
+          -f override.auto.tfvars.json \
+          -b backend.tfvars \
+          -b backend-key.tfvars \
           plan approve apply
 
- - Run 'plan' using a `.terraformshrc` file, but override the *PLAN_ARGS* array:
+ - Run 'plan' using a `.terraformshrc` file that has all the above options,
+   but override terraformsh's internal arguments to 'terraform plan':
 
-      $ ./terraformsh \
-        -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
-        plan
+        $ terraformsh -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
+          plan
 
+ - Run 'plan' on a module and pass any configs found in these directories:
 
- - Run 'plan' on a module, passing configs the shell finds in these directories:
-
-      $ ./terraformsh \
-         -C ../../modules/my-database/ \
-         *.tfvars \
-         *.backend.tfvars \
-         my-database/*.tfvars \
-         my-database/*.backend.tfvars \
-         plan
-
+        $ terraformsh -C rootmodules/my-database/ \
+           *.tfvars  *.backend.tfvars \
+           env/my-database/*.tfvars  env/my-database/*.backend.tfvars \
+           plan
 
  - Run 'plan' on a module, implicitly loading configuration files from parent directories:
 
-      $ pwd
-      /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
-      $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
-      $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
-      $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
-      $ echo 'database_name = "some database"' > terraform.sh.tfvars
-      $ terraformsh plan
+        $ pwd
+        /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+        $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+        $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+        $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+        $ echo 'database_name = "some database"' > terraform.sh.tfvars
+        $ terraformsh plan
 
 
 ## Details
@@ -93,22 +94,22 @@
     USE_PLANFILE=1
     INHERIT_TFFILES=1
 
-  The following can be set in the config file as arrays, or you can set them
-  by passing them to `-E`, such as `-E CD_DIRS=(../some-dir/)`
+  The following can be set in the Terraformsh config file as arrays, or you can
+  set them by passing them to `-E`, such as `-E CD_DIRS=(../some-dir/)`.
 
-    VARFILE_ARG=()
-    CD_DIRS=()
-    CMDS=()
-    BACKENDVARFILE_ARG=()
-    PLAN_ARGS=(-input=false)
-    APPLY_ARGS=(-input=false)
-    PLANDESTROY_ARGS=(-input=false)
-    DESTROY_ARGS=(-input=false)
-    REFRESH_ARGS=(-input=false)
-    INIT_ARGS=(-input=false)
-    IMPORT_ARGS=(-input=false)
-    GET_ARGS=(-update=true)
-    STATE_ARGS=(-input=false)
+    VARFILES=()     # files to pass to -var-file
+    BACKENDVARFILES=() # files to pass to -backend-config
+    CD_DIRS=()       # the directories to change to before running commands
+    CMDS=()             # the commands for terraformsh to run
+    PLAN_ARGS=(-input=false)   # the arguments for 'terraform plan'
+    APPLY_ARGS=(-input=false) # the arguments for 'terraform apply'
+    PLANDESTROY_ARGS=(-input=false) # arguments for 'plan -destroy'
+    DESTROY_ARGS=(-input=false) # arguments for 'terraform destroy'
+    REFRESH_ARGS=(-input=false) # arguments for 'terraform refresh'
+    INIT_ARGS=(-input=false)     # arguments for 'terraform init'
+    IMPORT_ARGS=(-input=false)   # arguments for 'terraform import'
+    GET_ARGS=(-update=true)       # arguments for 'terraform get'
+    STATE_ARGS=(-input=false)     # arguments for 'terraform state'
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
@@ -123,9 +124,12 @@
   Pass these *OPTIONS* before any others (see examples); do not pass them after
   *TFVARS* or *COMMAND*s.
 
-    -f FILE           A file passed to Terraform's -var-file option
-    -b FILE           A file passed to Terraform's -backend-config option
-    -C DIR            Change to directory DIR
+    -f FILE           A file passed to Terraform's -var-file option.
+                      (Override with VARFILES)
+    -b FILE           A file passed to Terraform's -backend-config option.
+                      (Override with BACKENDVARFILES)
+    -C DIR            Change to directory DIR.
+                      (Override with CD_DIRS)
     -c file           Specify a '.terraformshrc' configuration file to load
     -E EXPR           Evaluate an expression in bash ('eval EXPR')
     -I                Disables automatically loading any 'terraform.sh.tfvars',

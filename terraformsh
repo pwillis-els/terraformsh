@@ -31,41 +31,42 @@ _usage () {
 
 ## Examples
 
+ - Run 'plan' in a root module directory, just like Terraform:
+
+       \$ cd rootmodules/aws-infra-region/
+       \$ terraformsh plan
+
  - Run 'plan', ask for approval, then 'apply' the plan:
 
-        \$ $0 \\
-          -f ../terraform.tfvars.json -f override.auto.tfvars.json \\
-          -b ../backend.tfvars -b backend-key.tfvars \\
-          -C ../../../rootmodules/aws-infra-region/ \\
+        \$ terraformsh -C rootmodules/aws-infra-region/ \\
+          -f terraform.tfvars.json \\
+          -f override.auto.tfvars.json \\
+          -b backend.tfvars \\
+          -b backend-key.tfvars \\
           plan approve apply
 
- - Run 'plan' using a \`.terraformshrc\` file, but override the *PLAN_ARGS* array:
+ - Run 'plan' using a \`.terraformshrc\` file that has all the above options,
+   but override terraformsh's internal arguments to 'terraform plan':
 
-      \$ $0 \\
-        -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
-        plan
+        \$ terraformsh -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \\
+          plan
 
+ - Run 'plan' on a module and pass any configs found in these directories:
 
- - Run 'plan' on a module, passing configs the shell finds in these directories:
-
-      \$ $0 \\
-         -C ../../modules/my-database/ \\
-         *.tfvars \\
-         *.backend.tfvars \\
-         my-database/*.tfvars \\
-         my-database/*.backend.tfvars \\
-         plan
-
+        \$ terraformsh -C rootmodules/my-database/ \\
+           *.tfvars  *.backend.tfvars \\
+           env/my-database/*.tfvars  env/my-database/*.backend.tfvars \\
+           plan
 
  - Run 'plan' on a module, implicitly loading configuration files from parent directories:
 
-      \$ pwd
-      /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
-      \$ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
-      \$ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
-      \$ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
-      \$ echo 'database_name = "some database"' > terraform.sh.tfvars
-      \$ terraformsh plan
+        \$ pwd
+        /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+        \$ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+        \$ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+        \$ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+        \$ echo 'database_name = "some database"' > terraform.sh.tfvars
+        \$ terraformsh plan
 
 
 ## Details
@@ -104,22 +105,22 @@ _usage () {
     USE_PLANFILE=$USE_PLANFILE
     INHERIT_TFFILES=$INHERIT_TFFILES
 
-  The following can be set in the config file as arrays, or you can set them
-  by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`
+  The following can be set in the Terraformsh config file as arrays, or you can
+  set them by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`.
 
-    VARFILE_ARG=(${VARFILE_ARG[@]})
-    CD_DIRS=(${CD_DIRS[@]})
-    CMDS=(${CMDS[@]})
-    BACKENDVARFILE_ARG=(${BACKENDVARFILE_ARG[@]})
-    PLAN_ARGS=(${PLAN_ARGS[@]})
-    APPLY_ARGS=(${APPLY_ARGS[@]})
-    PLANDESTROY_ARGS=(${PLANDESTROY_ARGS[@]})
-    DESTROY_ARGS=(${DESTROY_ARGS[@]})
-    REFRESH_ARGS=(${REFRESH_ARGS[@]})
-    INIT_ARGS=(${INIT_ARGS[@]})
-    IMPORT_ARGS=(${IMPORT_ARGS[@]})
-    GET_ARGS=(${GET_ARGS[@]})
-    STATE_ARGS=(${STATE_ARGS[@]})
+    VARFILES=(${VARFILES[@]})     # files to pass to -var-file
+    BACKENDVARFILES=(${BACKENDVARFILES[@]}) # files to pass to -backend-config
+    CD_DIRS=(${CD_DIRS[@]})       # the directories to change to before running commands
+    CMDS=(${CMDS[@]})             # the commands for terraformsh to run
+    PLAN_ARGS=(${PLAN_ARGS[@]})   # the arguments for 'terraform plan'
+    APPLY_ARGS=(${APPLY_ARGS[@]}) # the arguments for 'terraform apply'
+    PLANDESTROY_ARGS=(${PLANDESTROY_ARGS[@]}) # arguments for 'plan -destroy'
+    DESTROY_ARGS=(${DESTROY_ARGS[@]}) # arguments for 'terraform destroy'
+    REFRESH_ARGS=(${REFRESH_ARGS[@]}) # arguments for 'terraform refresh'
+    INIT_ARGS=(${INIT_ARGS[@]})     # arguments for 'terraform init'
+    IMPORT_ARGS=(${IMPORT_ARGS[@]})   # arguments for 'terraform import'
+    GET_ARGS=(${GET_ARGS[@]})       # arguments for 'terraform get'
+    STATE_ARGS=(${STATE_ARGS[@]})     # arguments for 'terraform state'
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
@@ -134,9 +135,12 @@ _usage () {
   Pass these *OPTIONS* before any others (see examples); do not pass them after
   *TFVARS* or *COMMAND*s.
 
-    -f FILE           A file passed to Terraform's -var-file option
-    -b FILE           A file passed to Terraform's -backend-config option
-    -C DIR            Change to directory DIR
+    -f FILE           A file passed to Terraform's -var-file option.
+                      (Override with VARFILES)
+    -b FILE           A file passed to Terraform's -backend-config option.
+                      (Override with BACKENDVARFILES)
+    -C DIR            Change to directory DIR.
+                      (Override with CD_DIRS)
     -c file           Specify a '.terraformshrc' configuration file to load
     -E EXPR           Evaluate an expression in bash ('eval EXPR')
     -I                Disables automatically loading any 'terraform.sh.tfvars',
@@ -265,7 +269,7 @@ _cmd_aws_bootstrap () {
     _cmd_clean_modules
 
     # Look though the backend var files for the backend bucket and dynamodb_table
-    for varfile in "${BACKENDVARFILE_ARG[@]}" ; do
+    for varfile in "${BACKENDVARFILES[@]}" ; do
         BACKEND_BUCKET="$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" \
             | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )"
         BACKEND_TABLE="$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" \
@@ -357,6 +361,12 @@ _final_vars () {
         PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
         DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
     fi
+    if [ ${#VARFILES[@]} -gt 0 ] ; then
+        for arg in "${VARFILES[@]}" ; do VARFILE_ARG+=("-var-file" "$arg"); done
+    fi
+    if [ ${#BACKENDVARFILES[@]} -gt 0 ] ; then
+        for arg in "${BACKENDVARFILES[@]}" ; do BACKENDVARFILE_ARG+=("-backend-config" "$arg"); done
+    fi
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
         echo "$0: WARNING: No -b option passed! Potentially using only local state."
         echo ""
@@ -384,9 +394,9 @@ _load_conf () {
 }
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
-        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "$TF_AUTO_CONFIG" )
-        while read -r LINE ; do VARFILE_ARG+=("-var-file" "$LINE") ; done < <( _rfindfiles "$TF_AUTO_CONFIG.json" )
-        while read -r LINE ; do BACKENDVARFILE_ARG+=("-backend-config" "$LINE") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG" )
+        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG" )
+        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG.json" )
+        while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG" )
     fi
 }
 _process_cmds () {
@@ -397,14 +407,14 @@ _process_cmds () {
                 -o $(expr "$cmd" : ".*\.backend\.sh\.tfvars$") -ne 0 \
                 -o $(expr "$cmd" : ".*\.backend$") -ne 0 \
               ]
-        then  BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$cmd")")
+        then  BACKENDVARFILES+=("$(readlinkf "$cmd")")
 
         elif  [ $(expr "$cmd" : ".*\.tfvars$") -ne 0 \
                 -o $(expr "$cmd" : ".*\.sh\.tfvars$") -ne 0 \
                 -o $(expr "$cmd" : ".*\.tfvars\.json$") -ne 0 \
                 -o $(expr "$cmd" : ".*\.sh\.tfvars\.json$") -ne 0 \
               ]
-        then  VARFILE_ARG+=("-var-file" "$(readlinkf "$cmd")")
+        then  VARFILES+=("$(readlinkf "$cmd")")
 
         else
             valid_cmd=0
@@ -463,16 +473,17 @@ _runcmd () {
 # ------------------           parse cmdline options           --------------------------- #
 
 SHOW_HELP=0
-declare -a BACKENDVARFILE_ARG=() VARFILE_ARG=() CMDS=() CD_DIRS=() CONF_FILE=()
-declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
+declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
+declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
+declare -a CMDS=() CD_DIRS=() CONF_FILE=()
 
 _default_vars
 
 while getopts "f:b:C:c:E:IPNhv" args ; do
     case $args in
-        f)  VARFILE_ARG+=("-var-file" "$(readlinkf "$OPTARG")") ;;
-        b)  BACKENDVARFILE_ARG+=("-backend-config" "$(readlinkf "$OPTARG")") ;;
+        f)  VARFILES+=("$(readlinkf "$OPTARG")") ;;
+        b)  BACKENDVARFILES+=("$(readlinkf "$OPTARG")") ;;
         C)  CD_DIRS+=("$OPTARG") ;;
         c)  CONF_FILE+=("$OPTARG") ;;
         E)  eval "$OPTARG" ;;
