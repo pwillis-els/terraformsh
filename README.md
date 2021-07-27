@@ -1,12 +1,17 @@
-    terraformsh v0.4
-    Usage: ./terraformsh [OPTIONS] COMMAND [..]
+    terraformsh v0.7
+    Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # About
-  Terraformsh makes it easier to run Terraform in automation. It runs common
-  Terraform commands for you in order, passing the right arguments as needed.
-  You can use configuration files to pre-set options and override them
-  via the environment and command-line. And it defaults to good conventions,
-  like using .plan files for changes.
+  Terraformsh makes it easier to run Terraform by taking care of things you might
+  normally need to do by hand. Unline other Terraform wrappers like Terragrunt,
+  nothing is done outside of the stock Terraform functionality. There is no custom
+  DSL to learn, no code generated. But in practice, you can use Terraformsh the
+  way you would use Terragrut to keep your code and configuration DRY.
+
+  Terraformsh will detect configuration files in order to control operation in
+  an immutable, version-controlled, infrastructure-as-code way. Overrides can
+  also be passed via environment variables and command-line options. Good
+  conventions, like using .plan files for changes, are done by default.
 
 # Requirements
  - Bash (v3+)
@@ -14,13 +19,32 @@
  - AWS CLI (only for aws_bootstrap command)
 
 # Usage
-  You can specify most options and commands multiple times, as Terraform will allow
-  you to pass options multiple times. This allows you to split up your configuration
-  among multiple files/paths to keep it DRY.
+  Change to the directory of a Terraform module and run `terraformsh` with any
+  Terraform commands and arguments you'd normally use. If you run a command
+  like `terraformsh plan`, Terraformsh will first run `terraform validate`,
+  which will first run `terraform get`, which will first run `terraform init`.
+  Each time, Terraformsh will pass default options that you _probably_ want, but
+  you can override these options multiple ways.
 
-  You can override the following defaults with environment variables, or set
-  them in a bash configuration file (`/etc/terraformsh`, `~/.terraformshrc`,
-  and `.terraformshrc`):
+  Terraformsh also supports passing multiple commands in one command-line (see
+  *Examples* section) as well as multiple of the same option.
+
+  You can also tell Terraformsh to change to a specific directory before running
+  commands, so you don't have to do it yourself. This can be put into a config
+  file in a local directory, making it easy to separate your modules and config
+  files.
+
+  You can pass *TFVARS* ('*.backend.tfvars', '*.backend.sh.tfvars', '*.tfvars.json',
+  '*.tfvars', '*.sh.tfvars.json', '*.sh.tfvars') after *OPTIONS* to pass these
+  files to Terraform commands as needed. Or you can specify them using their 
+  accompanying OPTION (see below). Finally, if there exist files in any parent
+  directory named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or
+  `terraform.sh.tfvars`, those will be loaded automatically as well (this
+  behavior can be disabled).
+
+  You can override the following default variables with environment variables, or
+  set them in a bash configuration file (`/etc/terraformsh`, `~/.terraformshrc`,
+  `.terraformshrc`, `terraformsh.conf`):
 
     TERRAFORM=terraform
     TF_PLANFILE=terraform.plan
@@ -28,8 +52,9 @@
     TF_BOOTSTAP_PLANFILE=terraform-bootstrap.plan
     USE_PLANFILE=1
     DEBUG=0
+    INHERIT_TFFILES=1
 
-  The following can be set in a configuration file as arrays, or you can set them
+  The following can be set in the config file as arrays, or you can set them
   by passing them to `-E`, such as `-E CD_DIRS=(../some-dir/)`
 
     VARFILE_ARG=()
@@ -44,6 +69,7 @@
     INIT_ARGS=(-input=false)
     IMPORT_ARGS=(-input=false)
     GET_ARGS=(-update=true)
+    STATE_ARGS=(-input=false)
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
@@ -52,9 +78,10 @@
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
 # Examples
- - Run plan, ask for approval, then apply the plan:
+
+ - Run 'plan', ask for approval, then 'apply' the plan:
     ```
-    ./terraformsh \
+    $ ./terraformsh \
       -f ../terraform.tfvars.json \
       -f override.auto.tfvars.json \
       -b ../backend.tfvars \
@@ -64,12 +91,36 @@
       approve \
       apply
     ```
- - Run plan using a `.terraformshrc` file, and override the PLAN_ARGS array:
+
+ - Run 'plan' using a `.terraformshrc` file, but override the PLAN_ARGS array:
     ```
-    ./terraformsh \
+    $ ./terraformsh \
       -E 'PLAN_ARGS=("-compact-warnings" "-no-color" "-input=false")' \
       plan
     ```
+
+ - Run 'plan' on a module, passing configs the shell finds in these directories:
+    ```
+    $ ./terraformsh \
+       -C ../../modules/my-database/ \
+       *.tfvars \
+       *.backend.tfvars \
+       my-database/*.tfvars \
+       my-database/*.backend.tfvars \
+       plan
+    ```
+
+ - Run 'plan' on a module, implicitly loading configuration files from parent directories:
+    ```
+    $ pwd
+    /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
+    $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+    $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
+    $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
+    $ echo 'database_name = "some database"' > terraform.sh.tfvars
+    $ ./terraformsh plan
+    ```
+
 
 # Options
     -f FILE           A file passed to Terraform's -var-file option
@@ -77,7 +128,11 @@
     -C DIR            Change to directory DIR
     -c file           Specify a '.terraformshrc' configuration file to load
     -E EXPR           Evaluate an expression in bash ('eval EXPR')
+    -I                Disables automatically loading any 'terraform.sh.tfvars',
+                      'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                      found while recursively searching parent directories.
     -P                Do not use '.plan' files for plan/apply/destroy commands
+    -N                Dry-run mode (don't execute anything)
     -v                Verbose mode
     -h                This help screen
 
@@ -95,3 +150,5 @@
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
+    import            Run `terraform import [...]`
+    state             RUn `terraform state [...]`
