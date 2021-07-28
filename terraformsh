@@ -352,7 +352,7 @@ _default_vars () {
     INIT_ARGS=("-input=false")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
-    STATE_ARGS=("-input=false")
+    STATE_ARGS=()
 }
 _final_vars () {
     if [ $USE_PLANFILE -eq 1 ] ; then
