@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.7"
+VERSION="0.8"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -95,7 +95,7 @@ _usage () {
 
   You can override the following default variables with environment variables, or
   set them in a bash configuration file (\`/etc/terraformsh\`, \`~/.terraformshrc\`,
-  \`.terraformshrc\`, \`terraformsh.conf\`):
+  \`.terraformshrc\`, \`terraformsh.conf\`), with the following key=value pairs:
 
     DEBUG=0
     TERRAFORM=$TERRAFORM
@@ -104,9 +104,10 @@ _usage () {
     TF_BOOTSTAP_PLANFILE=$TF_BOOTSTRAP_PLANFILE
     USE_PLANFILE=$USE_PLANFILE
     INHERIT_TFFILES=$INHERIT_TFFILES
+    NO_DEP_CMDS=0
 
-  The following can be set in the Terraformsh config file as arrays, or you can
-  set them by passing them to \`-E\`, such as \`-E CD_DIRS=(../some-dir/)\`.
+  The following can be set in the Terraformsh config file as Bash arrays, or you
+  can set them by passing them to \`-E\`, such as \`-E "CD_DIRS=(../some-dir/)"\`.
 
     VARFILES=(${VARFILES[@]})     # files to pass to -var-file
     BACKENDVARFILES=(${BACKENDVARFILES[@]}) # files to pass to -backend-config
@@ -135,21 +136,34 @@ _usage () {
   Pass these *OPTIONS* before any others (see examples); do not pass them after
   *TFVARS* or *COMMAND*s.
 
-    -f FILE           A file passed to Terraform's -var-file option.
-                      (Override with VARFILES)
-    -b FILE           A file passed to Terraform's -backend-config option.
-                      (Override with BACKENDVARFILES)
-    -C DIR            Change to directory DIR.
-                      (Override with CD_DIRS)
-    -c file           Specify a '.terraformshrc' configuration file to load
-    -E EXPR           Evaluate an expression in bash ('eval EXPR')
-    -I                Disables automatically loading any 'terraform.sh.tfvars',
-                      'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
-                      found while recursively searching parent directories.
-    -P                Do not use '.plan' files for plan/apply/destroy commands
-    -N                Dry-run mode (don't execute anything)
-    -v                Verbose mode
-    -h                This help screen
+    -f FILE         A file passed to Terraform's -var-file option.
+                    (config: VARFILES=)
+
+    -b FILE         A file passed to Terraform's -backend-config option.
+                    (config: BACKENDVARFILES=)
+
+    -C DIR          Change to directory DIR. (config: CD_DIRS=())
+
+    -c file         Specify a '.terraformshrc' configuration file to load
+
+    -E EXPR         Evaluate an expression in bash ('eval EXPR').
+
+    -I              Disables automatically loading any 'terraform.sh.tfvars',
+                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                    found while recursively searching parent directories.
+                    (config: INHERIT_TFFILES=0)
+
+    -P              Do not use '.plan' files for plan/apply/destroy commands.
+                    (config: USE_PLANFILE=0)
+
+    -D              Don't run 'dependency' commands (e.g. don't run "terraform
+                    init" before "terraform apply"). (config: NO_DEP_CMDS=1)
+
+    -N              Dry-run mode (don't execute anything). (config: DRYRUN=1)
+
+    -v              Verbose mode. (config: DEBUG=1)
+
+    -h              This help screen
 
 # Commands
 
@@ -181,33 +195,33 @@ declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_
 # ------------------           functions                       --------------------------- #
 
 _cmd_plan () {
-    _cmd_validate
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
     _runcmd $TERRAFORM plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}"
 }
 _cmd_apply () {
-    _cmd_init
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     _runcmd $TERRAFORM apply "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
-    _cmd_validate
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
     _runcmd $TERRAFORM plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}"
 }
 _cmd_destroy () {
-    _cmd_init
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     _runcmd $TERRAFORM apply "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
-    _cmd_get
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
     _runcmd $TERRAFORM validate "${VARFILE_ARG[@]}"
 }
 _cmd_get () {
-    _cmd_init # 'terraform get' does nothing if we have not initialized terraform
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
     _runcmd $TERRAFORM get "${GET_ARGS[@]}"
 }
 _cmd_refresh() {
-    _cmd_init
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     _runcmd $TERRAFORM refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
@@ -235,7 +249,7 @@ _cmd_catchall () {
 # into a shell in the working directory of the root module to be used, with
 # everything ready to run 'terraform' commands (such as 'terraform state list')
 _cmd_shell () {
-    _cmd_get
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
     _runcmd bash -i -l
 }
 # This is basically in case the directory structure where this runs was changed
@@ -246,7 +260,7 @@ _cmd_clean_modules () {
     _runcmd rm -v -rf .terraform/modules/*
 }
 _cmd_clean () {
-    _cmd_clean_modules
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_clean_modules
     _runcmd rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true
 }
 _cmd_approve () {
@@ -464,9 +478,7 @@ _rfindfiles () {
 }
 _runcmd () {
     echo "+ $*" 1>&2
-    if [ ! "${DRYRUN:-0}" = "1" ] ; then
-        "$@"
-    fi
+    if [ ! "${DRYRUN:-0}" = "1" ] ; then "$@"; fi
 }
 
 # ---------------------------------------------------------------------------------------- #
@@ -480,7 +492,7 @@ declare -a CMDS=() CD_DIRS=() CONF_FILE=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:IPNhv" args ; do
+while getopts "f:b:C:c:E:IPDNhv" args ; do
     case $args in
         f)  VARFILES+=("$(readlinkf "$OPTARG")") ;;
         b)  BACKENDVARFILES+=("$(readlinkf "$OPTARG")") ;;
@@ -489,6 +501,7 @@ while getopts "f:b:C:c:E:IPNhv" args ; do
         E)  eval "$OPTARG" ;;
         I)  INHERIT_TFFILES=0 ;;
         P)  USE_PLANFILE=0 ;;
+        D)  NO_DEP_CMDS=1 ;;
         N)  DRYRUN=1 ;;
         h)  SHOW_HELP=1 ;;
         v)  export DEBUG=1 ;;
