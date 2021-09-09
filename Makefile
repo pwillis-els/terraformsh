@@ -7,6 +7,8 @@ lint:
         --exclude=SC1091 \
         --exclude=SC2004 \
         --exclude=SC1090 \
+        --exclude=SC2166 \
+        --exclude=SC2046 \
         terraformsh
 
 readme:

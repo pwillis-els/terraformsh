@@ -1,4 +1,4 @@
-    terraformsh v0.7
+    terraformsh v0.8
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # Requirements
@@ -84,7 +84,7 @@
 
   You can override the following default variables with environment variables, or
   set them in a bash configuration file (`/etc/terraformsh`, `~/.terraformshrc`,
-  `.terraformshrc`, `terraformsh.conf`):
+  `.terraformshrc`, `terraformsh.conf`), with the following key=value pairs:
 
     DEBUG=0
     TERRAFORM=terraform
@@ -93,9 +93,10 @@
     TF_BOOTSTAP_PLANFILE=terraform-bootstrap.plan
     USE_PLANFILE=1
     INHERIT_TFFILES=1
+    NO_DEP_CMDS=0
 
-  The following can be set in the Terraformsh config file as arrays, or you can
-  set them by passing them to `-E`, such as `-E CD_DIRS=(../some-dir/)`.
+  The following can be set in the Terraformsh config file as Bash arrays, or you
+  can set them by passing them to `-E`, such as `-E "CD_DIRS=(../some-dir/)"`.
 
     VARFILES=()     # files to pass to -var-file
     BACKENDVARFILES=() # files to pass to -backend-config
@@ -109,7 +110,7 @@
     INIT_ARGS=(-input=false)     # arguments for 'terraform init'
     IMPORT_ARGS=(-input=false)   # arguments for 'terraform import'
     GET_ARGS=(-update=true)       # arguments for 'terraform get'
-    STATE_ARGS=(-input=false)     # arguments for 'terraform state'
+    STATE_ARGS=()     # arguments for 'terraform state'
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
@@ -124,21 +125,34 @@
   Pass these *OPTIONS* before any others (see examples); do not pass them after
   *TFVARS* or *COMMAND*s.
 
-    -f FILE           A file passed to Terraform's -var-file option.
-                      (Override with VARFILES)
-    -b FILE           A file passed to Terraform's -backend-config option.
-                      (Override with BACKENDVARFILES)
-    -C DIR            Change to directory DIR.
-                      (Override with CD_DIRS)
-    -c file           Specify a '.terraformshrc' configuration file to load
-    -E EXPR           Evaluate an expression in bash ('eval EXPR')
-    -I                Disables automatically loading any 'terraform.sh.tfvars',
-                      'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
-                      found while recursively searching parent directories.
-    -P                Do not use '.plan' files for plan/apply/destroy commands
-    -N                Dry-run mode (don't execute anything)
-    -v                Verbose mode
-    -h                This help screen
+    -f FILE         A file passed to Terraform's -var-file option.
+                    (config: VARFILES=)
+
+    -b FILE         A file passed to Terraform's -backend-config option.
+                    (config: BACKENDVARFILES=)
+
+    -C DIR          Change to directory DIR. (config: CD_DIRS=())
+
+    -c file         Specify a '.terraformshrc' configuration file to load
+
+    -E EXPR         Evaluate an expression in bash ('eval EXPR').
+
+    -I              Disables automatically loading any 'terraform.sh.tfvars',
+                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                    found while recursively searching parent directories.
+                    (config: INHERIT_TFFILES=0)
+
+    -P              Do not use '.plan' files for plan/apply/destroy commands.
+                    (config: USE_PLANFILE=0)
+
+    -D              Don't run 'dependency' commands (e.g. don't run "terraform
+                    init" before "terraform apply"). (config: NO_DEP_CMDS=1)
+
+    -N              Dry-run mode (don't execute anything). (config: DRYRUN=1)
+
+    -v              Verbose mode. (config: DEBUG=1)
+
+    -h              This help screen
 
 # Commands
 
