@@ -12,4 +12,5 @@ lint:
         terraformsh
 
 readme:
-	rm -f README.md ; ./terraformsh -h > README.md ; true
+	cat README.md.tmpl > README.md
+	./terraformsh -h >> README.md ; true
