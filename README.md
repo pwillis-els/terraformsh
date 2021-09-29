@@ -21,16 +21,18 @@
   still use one if you want).
 
   You can override any options with environment variables, command-line options
-  and config files. Good conventions like using .plan files for changes are the
+  and config files. Good conventions like using *.plan* files for changes are the
   default.
 
 
 ## How it works
 
+### Basic operation
+
   Change to the directory of a Terraform module and run `terraformsh` with any
   Terraform commands and arguments you'd normally use.
 
-       $ cd rootmodules/aws-infra-region/
+       $ cd root-modules/aws/common/
        $ terraformsh plan
        $ terraformsh apply
 
@@ -40,7 +42,24 @@
   relevant options to each command as necessary, and you can also override
   those options.
 
-  You can even pass multiple Terraform commands as options and it'll run them
+
+### Automatic *plan* files
+
+  When certain commands are run (`plan`, `apply`, `plan_destroy`, `destroy`)
+  Terraformsh will use the appropriate options to create a *plan file*. This way
+  you can be sure that an `apply` or `destroy` operation will only happen on
+  a plan that has been saved to a file and reviewed. (You can disable this
+  automatic behavior by setting *USE_PLANFILE=0* as an environment or configuration
+  variable)
+
+  The plan files are, by default, written to the directory where you ran Terraformsh,
+  with a naming convention like `tfsh.92h39d9hd9.plan`. You can override this by
+  setting environent or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
+
+
+### Multiple commands as arguments
+
+  You can pass multiple Terraform commands as options and it'll run them
   in the order you specify.
 
   Not sure what that looks like? Use the dry-run mode:
@@ -56,6 +75,8 @@
         + terraform apply -input=false /home/vagrant/git/PUBLIC/terraformsh/tf.104900abc1.plan
 
 
+### Change directory at runtime
+
   You can tell Terraformsh to change to a module's directory before running commands
   so you don't have to do it yourself (later versions of Terraform have an option
   for this, but earlier ones don't):
@@ -63,13 +84,11 @@
         $ ./terraformsh -C ../../../root-modules/aws/common/ plan
 
 
-  You can pass Terraform configuration files using the `-f` or `-b` options. And
-  to make this even simpler, if you pass any argument to Terraformsh after the 
-  initial *OPTIONS*, and they match *TFVARS* ('\*.backend.tfvars', '\*.backend.sh.tfvars',
-  '\*.tfvars.json', '\*.tfvars', '\*.sh.tfvars.json', '\*.sh.tfvars'), they will
-  be loaded with the `-f` and `-b` options automatically.
+### Passing Terraform tfvars files
 
-        $ terraformsh -C ../../.../root-modules/aws/common/ \
+  You can pass Terraform configuration files using the `-f` or `-b` options.
+
+        $ terraformsh -C ../../../root-modules/aws/common/ \
             -f terraform.tfvars.json \
             -f override.auto.tfvars.json \
             -b backend.tfvars \
@@ -77,9 +96,36 @@
             plan approve apply
 
 
+  To make this even simpler, if you pass any argument to Terraformsh after the 
+  initial *OPTIONS*, and they match *TFVARS* ('\*.backend.tfvars', '\*.backend.sh.tfvars',
+  '\*.tfvars.json', '\*.tfvars', '\*.sh.tfvars.json', '\*.sh.tfvars'), they will
+  be automatically loaded with the `-f` and `-b` options.
+
+        # Assuming you already have 'something.tfvars' and 'something.backend.tfvars'
+        # in your current working directory, run the following:
+        $ terraformsh -C ../../../root-modules/aws/common/ \
+            *.tfvars \
+            plan approve apply
+
+
   Finally, if in any *parent directory* of where you ran Terraformsh, thee are
   files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or `terraform.sh.tfvars`,
   those will also be loaded automatically (you can disable this with the `-I` option).
+
+        $ mkdir -p some/configs/here
+        $ cd some
+        $ touch terraform.sh.tfvars
+        $ cd configs
+        $ touch backend.sh.tfvars
+        $ cd here
+        $ touch terraform.sh.tfvars
+        $ terraformsh -N plan apply
+        + terraform init -input=false -reconfigure -force-copy -backend-config /home/vagrant/git/PUBLIC/terraformsh/some/configs/backend.sh.tfvars
+        + terraform get -update=true
+        + terraform validate -var-file /home/vagrant/git/PUBLIC/terraformsh/some/terraform.sh.tfvars -var-file /home/vagrant/git/PUBLIC/terraformsh/some/configs/here/terraform.sh.tfvars
+        + terraform plan -var-file /home/vagrant/git/PUBLIC/terraformsh/some/terraform.sh.tfvars -var-file /home/vagrant/git/PUBLIC/terraformsh/some/configs/here/terraform.sh.tfvars -input=false -out=/home/vagrant/git/PUBLIC/terraformsh/some/configs/here/tf.019c25e289.plan
+        + terraform init -input=false -reconfigure -force-copy -backend-config /home/vagrant/git/PUBLIC/terraformsh/some/configs/backend.sh.tfvars
+        + terraform apply -input=false /home/vagrant/git/PUBLIC/terraformsh/some/configs/here/tf.019c25e289.plan
 
 
 ### Environment Variables / Configuration
@@ -94,9 +140,9 @@
 
     DEBUG=0
     TERRAFORM=terraform
-    TF_PLANFILE=terraform.plan
-    TF_DESTROY_PLANFILE=terraform-destroy.plan
-    TF_BOOTSTAP_PLANFILE=terraform-bootstrap.plan
+    TF_PLANFILE=        # Automatically populated by terraformsh
+    TF_DESTROY_PLANFILE=        # Automatically populated by terraformsh
+    TF_BOOTSTAP_PLANFILE=       # Automatically populated by terraformsh
     USE_PLANFILE=1
     INHERIT_TFFILES=1
     NO_DEP_CMDS=0
@@ -109,7 +155,7 @@
   environment variable, Terraformsh will just use that.
 
   The following can be set in the Terraformsh config file as Bash arrays, or you
-  can set them by passing them to `-E`, such as `-E "CD_DIRS=(../some-dir/)"`.
+  can set them by passing them to `-E`, such as `-E "PLAN_ARGS=(-no-color -input=false)"`.
 
     VARFILES=()			# files to pass to -var-file
     BACKENDVARFILES=() 		# files to pass to -backend-config
@@ -130,6 +176,7 @@
     bucket          - The S3 bucket your Terraform state will live in
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
+
 ### More Examples
 
   There are many ways to use Terraformsh, whether you pass all the options
@@ -144,16 +191,16 @@
 
  - Run 'plan' on a module and pass any configs found in these directories:
 
-        $ terraformsh -C rootmodules/my-database/ \
-           *.tfvars  *.backend.tfvars \
-           env/my-database/*.tfvars  env/my-database/*.backend.tfvars \
+        $ terraformsh -C root-modules/my-database/ \
+           *.tfvars \
+           env/my-database/*.tfvars \
            plan
 
  - Run 'plan' on a module, implicitly loading configuration files from parent directories:
 
         $ pwd
         /home/vagrant/git/some-repo/env/non-prod/us-east-2/my-database
-        $ echo 'CD_DIRS=(../../../../modules/my-database/)' > terraformsh.conf
+        $ echo 'CD_DIR=../../../../modules/my-database/' > terraformsh.conf
         $ echo 'aws_account_id = "0123456789"' > ../../terraform.sh.tfvars
         $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
         $ echo 'database_name = "some database"' > terraform.sh.tfvars
