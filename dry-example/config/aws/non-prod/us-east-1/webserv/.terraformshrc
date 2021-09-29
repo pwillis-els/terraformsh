@@ -1,1 +1,1 @@
-CD_DIRS=("../../../../../rootmodule/aws/webserv/")
+CD_DIR="../../../../../rootmodule/aws/webserv/"

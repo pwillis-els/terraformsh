@@ -70,7 +70,7 @@ Notice how the configs are split up in different directories. This has two purpo
 
 The last part - how you actually run **Terraformsh** - is completely up to you. Here are some options:
 
- - If your current working directory isn't a Terraform root module, you'll have to pass the `-C` option to **Terraformsh** to have it change to a root directory for you. So you can decide to either change directories every time you want to run **Terraformsh** (just like with Terraform), or you can pass the `-C` option to **Terraformsh**, or you can create a `.terraformshrc` config file with the `CD_DIRS=(...)` option defined. The latter is the easiest way to run **Terraformsh**.
+ - If your current working directory isn't a Terraform root module, you'll have to pass the `-C` option to **Terraformsh** to have it change to a root directory for you. So you can decide to either change directories every time you want to run **Terraformsh** (just like with Terraform), or you can pass the `-C` option to **Terraformsh**, or you can create a `.terraformshrc` config file with the `CD_DIR=...` option defined. The latter is the easiest way to run **Terraformsh**.
 
  - To pass configuration files to Terraform (your root modules probably have variables they want configuration for) you can pass the `-f` and `-b` options to **Terraformsh**. But if any files exist in the current or parent directories matching specific file names (`terraform.sh.tfvars`, `terraform.sh.tfvars.json`, `backend.sh.tfvars`), those config files will be loaded automatically. In addition, you can specify any configs you want in a `.terraformshrc` config file. So you can run **Terraformsh** from specific `config/` directory, or you can use the `.terraformshrc` config files from any directory.
 

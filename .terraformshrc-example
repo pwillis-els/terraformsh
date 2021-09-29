@@ -8,4 +8,4 @@ BACKENDVARFILE_ARG=("-backend-config" "backend.tfvars")
 PLAN_ARGS=("-compact-warnings" "-no-color")
 APPLY_ARGS=("-compact-warnings" "-no-color")
 CMDS=("plan")
-CD_DIRS=("root/module/dir/")
+CD_DIR="root/module/dir/"
