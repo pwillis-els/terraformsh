@@ -1,2 +1,2 @@
- - [ ] Overwrite the `TF_DATA_DIR` environment variable with a new temp directory, and clean it up on exit
+ - [x] Overwrite the `TF_DATA_DIR` environment variable with a new temp directory, and clean it up on exit
  - [ ] Add `TF_LOG` and `TF_LOG_PATH` environment variables by default, so you don't have to filter console output for logs, and we can trace more often

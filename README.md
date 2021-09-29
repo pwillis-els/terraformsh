@@ -65,7 +65,7 @@
   Not sure what that looks like? Use the dry-run mode:
 
         $ ./terraformsh -N plan apply
-        .//terraformsh: WARNING: No -b option passed! Potentially using only local state.
+        ./terraformsh: WARNING: No -b option passed! Potentially using only local state.
 
         + terraform init -input=false -reconfigure -force-copy
         + terraform get -update=true
@@ -177,6 +177,28 @@
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
 
+### Interactive troubleshooting
+
+  Need to troubleshoot some problem by just running 'terraform' yourself? No
+  problem, use the `shell` command`. It will drop you into a Bash shell after
+  first changing to the correct directory and running `terraform init` and
+  `terraform get` with all the environment variables set up for you
+  (including the custom *TF_DATA_DIR*).
+
+        $ ./terraformsh -N -C ../../../root-modules/aws/common/ shell
+        + cd "../../../root-modules/aws/common/"
+        ./terraformsh: WARNING: No -b option passed! Potentially using only local state.
+
+        + terraform init -input=false -reconfigure -force-copy
+        + terraform get -update=true
+        + bash -i -l
+
+
+  You can even get Terraformsh to explicitly ask you for confirmation before
+  moving to the next command with the `approve` command (since the default is
+  to pass `-input=false` to each command for easier use in automation).
+
+
 ### More Examples
 
   There are many ways to use Terraformsh, whether you pass all the options
@@ -209,7 +231,7 @@
 ---
 
 
-    terraformsh v0.8
+    terraformsh v0.9
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options

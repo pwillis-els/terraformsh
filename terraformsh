@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.8"
+VERSION="0.9"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -136,9 +136,9 @@ _cmd_clean () {
 }
 _cmd_approve () {
     echo ""
-    read -p "Are you SURE you want to apply the above plan? Type 'YES' to apply now: " APPROVE
+    read -p "Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
     if [ "$APPROVE" = "YES" ] ; then
-        echo "Approval given; continuing with terraform apply"
+        echo "Approval given; continuing!"
     else
         echo "Approval not given; exiting!"
         exit 1
