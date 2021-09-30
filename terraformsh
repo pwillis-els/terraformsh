@@ -104,6 +104,7 @@ _cmd_import () {
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
 }
 _cmd_state () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
     declare -a _args=() _opts=("$@")
     _cmd=""
