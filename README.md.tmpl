@@ -108,7 +108,7 @@
             plan approve apply
 
 
-  Finally, if in any *parent directory* of where you ran Terraformsh, thee are
+  Finally, if in any *parent directory* of where you ran Terraformsh, there are
   files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or `terraform.sh.tfvars`,
   those will also be loaded automatically (you can disable this with the `-I` option).
 
@@ -180,7 +180,7 @@
 ### Interactive troubleshooting
 
   Need to troubleshoot some problem by just running 'terraform' yourself? No
-  problem, use the `shell` command`. It will drop you into a Bash shell after
+  problem, use the `shell` command. It will drop you into a Bash shell after
   first changing to the correct directory and running `terraform init` and
   `terraform get` with all the environment variables set up for you
   (including the custom *TF_DATA_DIR*).
