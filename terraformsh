@@ -95,6 +95,14 @@ _cmd_refresh() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}"
 }
+_cmd_0.12upgrade() {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}"
+}
+_cmd_0.13upgrade() {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}"
+}
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
@@ -253,6 +261,8 @@ _default_vars () {
     PLANDESTROY_ARGS=("-input=false")
     DESTROY_ARGS=("-input=false")
     REFRESH_ARGS=("-input=false")
+    OH12UPGRADE_ARGS=("-yes")
+    OH13UPGRADE_ARGS=("-yes")
     INIT_ARGS=("-input=false")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
