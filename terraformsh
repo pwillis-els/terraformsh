@@ -112,7 +112,7 @@ _cmd_import () {
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
 }
 _cmd_state () {
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
     # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
     declare -a _args=() _opts=("$@")
     _cmd=""
@@ -187,20 +187,20 @@ _cmd_aws_bootstrap () {
         --bucket "${BACKEND_BUCKET}" --query LocationConstraint --output text \
         || true )"
     if [ -n "$BUCKET_REGION" ] ; then
-        echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..."
+        echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..." 1>&2
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
     else
-        echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..."
+        echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..." 1>&2
     fi
 
     # Attempt to import dynamodb table if it exists
     DYNAMODB_TABLE="$( aws dynamodb list-tables \
         | jq -re "select(.TableNames | index(\"$BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
-        echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..."
+        echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..." 1>&2
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
     else
-        echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..."
+        echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..." 1>&2
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
@@ -213,7 +213,7 @@ _cmd_aws_bootstrap () {
     # Set an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
 
-    echo "Sleeping 60 seconds before querying bucket again ..."
+    echo "Sleeping 60 seconds before querying bucket again ..." 1>&2
     sleep 60
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
@@ -292,8 +292,8 @@ _final_vars () {
         for arg in "${BACKENDVARFILES[@]}" ; do BACKENDVARFILE_ARG+=("-backend-config" "$arg"); done
     fi
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-        echo "$0: WARNING: No -b option passed! Potentially using only local state."
-        echo ""
+        echo "$0: WARNING: No -b option passed! Potentially using only local state." 1>&2
+        echo "" 1>&2
         sleep 1
         INIT_ARGS+=("-reconfigure" "-force-copy")
     else
@@ -348,7 +348,7 @@ _process_cmds () {
                 fi
             done
             if [ $valid_cmd -eq 0 ] ; then
-                echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead"
+                echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead" 1>&2
                 OPTS+=("$cmd")
             fi
         fi
