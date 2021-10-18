@@ -284,6 +284,18 @@ _default_vars () {
 
     TERRAFORM_PWD="$(pwd)"
 }
+_pre_dirchange_vars () {
+    if [ ${#VARFILES[@]} -gt 0 ] ; then
+        for arg in "${VARFILES[@]}" ; do
+            VARFILE_ARG+=("-var-file" "$(_readlinkf "$arg")")
+        done
+    fi
+    if [ ${#BACKENDVARFILES[@]} -gt 0 ] ; then
+        for arg in "${BACKENDVARFILES[@]}" ; do
+            BACKENDVARFILE_ARG+=("-backend-config" "$(_readlinkf "$arg")")
+        done
+    fi
+}
 _final_vars () {
     TERRAFORM_MODULE_PWD="$(pwd)"
     _tf_set_datadir
@@ -300,10 +312,14 @@ _final_vars () {
         DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
     fi
     if [ ${#VARFILES[@]} -gt 0 ] ; then
-        for arg in "${VARFILES[@]}" ; do VARFILE_ARG+=("-var-file" "$arg"); done
+        for arg in "${VARFILES[@]}" ; do
+            VARFILE_ARG+=("-var-file" "$(_readlinkf "$arg")")
+        done
     fi
     if [ ${#BACKENDVARFILES[@]} -gt 0 ] ; then
-        for arg in "${BACKENDVARFILES[@]}" ; do BACKENDVARFILE_ARG+=("-backend-config" "$arg"); done
+        for arg in "${BACKENDVARFILES[@]}" ; do
+            BACKENDVARFILE_ARG+=("-backend-config" "$(_readlinkf "$arg")")
+        done
     fi
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
         echo "$0: WARNING: No -b option passed! Potentially using only local state." 1>&2
@@ -374,6 +390,13 @@ _process_cmds () {
     if [ ${#CMDS[@]} -gt 1 ] && [ ${#OPTS[@]} -gt 0 ] ; then
         echo "$0: Error: you passed multiple commands with some non-command arguments; you can only pass non-command arguments with a single valid command."
         exit 1
+    fi
+}
+_dirchange () {
+    # Change to directories
+    if [ -n "${CD_DIR:-}" ] ; then
+        printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
+        cd "$CD_DIR"
     fi
 }
 _readlinkf () {
@@ -448,13 +471,8 @@ _load_conf
 
 declare -a OPTS=()
 _process_cmds
-
-# Change to directories
-if [ -n "${CD_DIR:-}" ] ; then
-    printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
-    cd "$CD_DIR"
-fi
-
+_pre_dirchange_vars
+_dirchange
 _final_vars
 
 for name in "${CMDS[@]}" ; do
