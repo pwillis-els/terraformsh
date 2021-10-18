@@ -277,7 +277,7 @@ _default_vars () {
     REFRESH_ARGS=("-input=false")
     OH12UPGRADE_ARGS=("-yes")
     OH13UPGRADE_ARGS=("-yes")
-    INIT_ARGS=("-input=false")
+    INIT_ARGS=("-input=false" "-reconfigure" "-force-copy")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
     STATE_ARGS=()
@@ -311,23 +311,12 @@ _final_vars () {
         PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
         DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
     fi
-    if [ ${#VARFILES[@]} -gt 0 ] ; then
-        for arg in "${VARFILES[@]}" ; do
-            VARFILE_ARG+=("-var-file" "$(_readlinkf "$arg")")
-        done
-    fi
-    if [ ${#BACKENDVARFILES[@]} -gt 0 ] ; then
-        for arg in "${BACKENDVARFILES[@]}" ; do
-            BACKENDVARFILE_ARG+=("-backend-config" "$(_readlinkf "$arg")")
-        done
-    fi
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
         echo "$0: WARNING: No -b option passed! Potentially using only local state." 1>&2
         echo "" 1>&2
         sleep 1
-        INIT_ARGS+=("-reconfigure" "-force-copy")
     else
-        INIT_ARGS+=("-reconfigure" "-force-copy" "${BACKENDVARFILE_ARG[@]}")
+        INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
     fi
 }
 _load_conf () {
