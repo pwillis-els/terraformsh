@@ -235,18 +235,17 @@ _cmd_aws_bootstrap () {
 _cleanup_tmp () { 
     if [ -n "${TF_TMPDIR:-}" ]; then rm -rf "$TF_TMPDIR"; fi
 }
-_tf_dd_unique_name () {
-    # Generate a truncated MD5 hash based on the name of both the directory where
-    # we ran terraformsh from, and any '-C' option (the root module). This way we
-    # can run 'terraformsh' from the same directory on multiple root modules, and
-    # they will each end up with a different TF_DATA_DIR.
-    TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
-}
 _tf_set_datadir () {
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
     if [ -z "${TF_DATA_DIR:-}" ] ; then
         _cleanup_tmp
-        [ -n "${TF_DD_UNIQUE_NAME:-}" ] || _tf_dd_unique_name
+        if [ -z "${TF_DD_UNIQUE_NAME:-}" ] ; then
+            # Generate a truncated MD5 hash based on the name of both the directory where
+            # we ran terraformsh from, and any '-C' option (the root module). This way we
+            # can run 'terraformsh' from the same directory on multiple root modules, and
+            # they will each end up with a different TF_DATA_DIR.
+            TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+        fi
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
         mkdir -p "$TF_TMPDIR"
         trap _cleanup_tmp EXIT
@@ -325,34 +324,32 @@ _load_conf () {
         for conf in "${CONF_FILE[@]}" ; do
             # NOTE: This is not a replacement for 'readlink -f'; if you want
             # that behavior, pass the real file path yourself, don't rely on this.
-            . "$(readlinkf "$conf")"
+            . "$(_readlinkf "$conf")"
         done
     fi
     return 0
 }
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG" )
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG.json" )
-        while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG" )
+        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE" )
+        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE.json" )
+        while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
     fi
 }
 _process_cmds () {
     declare -a tmpcmds=()
     for cmd in "${CMDS[@]}" ; do
         # If a config file was passed as a command, add them as options
-        if    [ "$(expr "$cmd" : ".*\.backend\.tfvars$")" -ne 0 \
-                -o "$(expr "$cmd" : ".*\.backend\.sh\.tfvars$")" -ne 0 \
-                -o "$(expr "$cmd" : ".*\.backend$")" -ne 0 \
-              ]
-        then  BACKENDVARFILES+=("$(readlinkf "$cmd")")
+        if    [ ! "$(expr "$cmd" : ".*\.backend\.tfvars$")" = "0" ] \
+              || [ ! "$(expr "$cmd" : ".*\.backend\.sh\.tfvars$")" = "0" ] \
+              || [ ! "$(expr "$cmd" : ".*\.backend$")" = "0" ]
+        then  BACKENDVARFILES+=("$(_readlinkf "$cmd")")
 
-        elif  [ "$(expr "$cmd" : ".*\.tfvars$")" -ne 0 \
-                -o "$(expr "$cmd" : ".*\.sh\.tfvars$")" -ne 0 \
-                -o "$(expr "$cmd" : ".*\.tfvars\.json$")" -ne 0 \
-                -o "$(expr "$cmd" : ".*\.sh\.tfvars\.json$")" -ne 0 \
-              ]
-        then  VARFILES+=("$(readlinkf "$cmd")")
+        elif  [ "$(expr "$cmd" : ".*\.tfvars$")" -ne 0 ] \
+              || [ "$(expr "$cmd" : ".*\.sh\.tfvars$")" -ne 0 ] \
+              || [ "$(expr "$cmd" : ".*\.tfvars\.json$")" -ne 0 ] \
+              || [ "$(expr "$cmd" : ".*\.sh\.tfvars\.json$")" -ne 0 ]
+        then  VARFILES+=("$(_readlinkf "$cmd")")
 
         else
             valid_cmd=0
@@ -373,12 +370,12 @@ _process_cmds () {
         echo ""
         _usage
     fi
-    if [ ${#CMDS[@]} -gt 1 -a ${#OPTS[@]} -gt 0 ] ; then
+    if [ ${#CMDS[@]} -gt 1 ] && [ ${#OPTS[@]} -gt 0 ] ; then
         echo "$0: Error: you passed multiple commands with some non-command arguments; you can only pass non-command arguments with a single valid command."
         exit 1
     fi
 }
-readlinkf () {
+_readlinkf () {
     [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
     [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
     while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
@@ -418,8 +415,8 @@ _default_vars
 
 while getopts "f:b:C:c:E:IPDNhv" args ; do
     case $args in
-        f)  VARFILES+=("$(readlinkf "$OPTARG")") ;;
-        b)  BACKENDVARFILES+=("$(readlinkf "$OPTARG")") ;;
+        f)  VARFILES+=("$(_readlinkf "$OPTARG")") ;;
+        b)  BACKENDVARFILES+=("$(_readlinkf "$OPTARG")") ;;
         C)  CD_DIR="$OPTARG" ;;
         c)  CONF_FILE+=("$OPTARG") ;;
         E)  eval "$OPTARG" ;;
