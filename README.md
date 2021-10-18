@@ -134,25 +134,36 @@
   You can capture anything you want Terraformsh to do in a config file that is
   automatically loaded.
 
-  You can override the following default variables with environment variables, or
-  set them in a bash configuration file (`/etc/terraformsh`, `~/.terraformshrc`,
-  `.terraformshrc`, `terraformsh.conf`), with the following key=value pairs:
+  The config file format is just a bash script. Therefore you can do things like
+  'export' arbitrary environment variables for Terraform to load, or even run
+  custom code.
+
+  It's *highly recommended* that you **do not** set environment variables like
+  Terraform's `TF_VAR_*`, otherwise you will have a mix of variables set in both
+  config files and environment variables, and it will make it difficult to track
+  down where/how a variable is being set. Stick to static variables in
+  `*.tfvars` or `*.tfvars.json` files, and load dynamic variables from Terraform
+  with a data source.
+
+  You can set the following variables in a config file (any of:
+  `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`),
+  or set them as environment variables before you call Terraformsh:
 
     DEBUG=0
     TERRAFORM=terraform
     TF_PLANFILE=        # Automatically populated by terraformsh
     TF_DESTROY_PLANFILE=        # Automatically populated by terraformsh
     TF_BOOTSTAP_PLANFILE=       # Automatically populated by terraformsh
-    USE_PLANFILE=1
-    INHERIT_TFFILES=1
-    NO_DEP_CMDS=0
+    USE_PLANFILE=1              # Use a plan file for each apply/destroy
+    INHERIT_TFFILES=1           # Inherit tfvars files in parent directories
+    NO_DEP_CMDS=0               # Don't run dependent commands automatically
     CD_DIR=             # The directory to change to before running terraform commands
 
-  The environment variable *TF_DATA_DIR* is automatically overridden by Terraformsh,
-  as it uses a new temporary directory for the data dir, based on *both* the name of
-  the directory you ran Terraformsh from, and the name of the Terraform module
-  you run terraform against (the `-C` option). If you pass your own *TF_DATA_DIR*
-  environment variable, Terraformsh will just use that.
+  The environment variable `TF_DATA_DIR` is automatically overridden by Terraformsh.
+  A new temporary directory is created for the data dir, based on *both* the name of
+  the directory you ran Terraformsh from, and the Terraform module directory
+  you run terraform against (the `-C` option). If you pass your own `TF_DATA_DIR`
+  environment variable, Terraformsh will use that instead.
 
   The following can be set in the Terraformsh config file as Bash arrays, or you
   can set them by passing them to `-E`, such as `-E "PLAN_ARGS=(-no-color -input=false)"`.
@@ -177,13 +188,16 @@
     dynamodb_table  - The DynamoDB table your Terraform state will be managed in
 
 
+  An example file: [.terraformshrc-example](.terraformshrc-example)
+
+
 ### Interactive troubleshooting
 
   Need to troubleshoot some problem by just running 'terraform' yourself? No
   problem, use the `shell` command. It will drop you into a Bash shell after
   first changing to the correct directory and running `terraform init` and
   `terraform get` with all the environment variables set up for you
-  (including the custom *TF_DATA_DIR*).
+  (including the automatic `TF_DATA_DIR`).
 
         $ ./terraformsh -N -C ../../../root-modules/aws/common/ shell
         + cd "../../../root-modules/aws/common/"
@@ -236,26 +250,40 @@
 
 # Options
 
-  Pass these *OPTIONS* before any others (see examples); do not pass them after
-  *TFVARS* or *COMMAND*s.
+  Pass these OPTIONS before any others (see examples); do not pass them after
+  TFVARS or COMMANDs.
 
     -f FILE         A file passed to Terraform's -var-file option.
                     (config: VARFILES=)
+
     -b FILE         A file passed to Terraform's -backend-config option.
                     (config: BACKENDVARFILES=)
-    -C DIR          Change to directory DIR. (config: CD_DIR=)
+
+    -C DIR          Change to directory DIR.
+                    (config: CD_DIR=)
+
     -c file         Specify a '.terraformshrc' configuration file to load
+
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
+
     -I              Disables automatically loading any 'terraform.sh.tfvars',
                     'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
                     found while recursively searching parent directories.
                     (config: INHERIT_TFFILES=0)
+
     -P              Do not use '.plan' files for plan/apply/destroy commands.
                     (config: USE_PLANFILE=0)
+
     -D              Don't run 'dependency' commands (e.g. don't run "terraform
-                    init" before "terraform apply"). (config: NO_DEP_CMDS=1)
-    -N              Dry-run mode (don't execute anything). (config: DRYRUN=1)
-    -v              Verbose mode. (config: DEBUG=1)
+                    init" before "terraform apply").
+                    (config: NO_DEP_CMDS=1)
+
+    -N              Dry-run mode (don't execute anything).
+                    (config: DRYRUN=1)
+
+    -v              Verbose mode.
+                    (config: DEBUG=1)
+
     -h              This help screen
 
 # Commands
