@@ -259,12 +259,13 @@ _default_vars () {
 
     export AWS_SDK_LOAD_CONFIG TF_IN_AUTOMATION
 
-    # Override these to change the configs that are automatically loaded if
-    # they exist in any parent directories (disable with the '-I' option).
-    TF_BACKEND_AUTO_CONFIG="backend.sh.tfvars"
-    TF_AUTO_CONFIG="terraform.sh.tfvars"
-    # This enables the functionality by default
-    INHERIT_TFFILES=1
+    # Override these variables to change the config files that are automatically loaded
+    # when found in any parent directories (disable with the '-I' option).
+    TF_BACKEND_AUTO_CONFIG_FILE="${TF_BACKEND_AUTO_CONFIG_FILE:-backend.sh.tfvars}"
+    TF_AUTO_CONFIG_FILE="${TF_AUTO_CONFIG_FILE:-terraform.sh.tfvars}"
+
+    # This enables the above functionality by default ('-I' sets this to 0)
+    INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
 
     CD_DIR=""
     USE_PLANFILE="${USE_PLANFILE:-1}"
