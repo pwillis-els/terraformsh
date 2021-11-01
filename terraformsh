@@ -93,7 +93,7 @@ _cmd_plan_destroy () {
 }
 _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
+    ([ "${USE_PLANFILE:-0}" = "0" ] && _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}") || _runcmd "$TERRAFORM" plan "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
