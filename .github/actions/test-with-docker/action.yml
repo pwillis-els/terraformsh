@@ -1,0 +1,5 @@
+name: "Test pull request with Docker"
+description: "GitHub action for testing pull request with Docker"
+runs:
+  using: "docker"
+  image: "Dockerfile"
