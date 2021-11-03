@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-           ca-certificates curl git make unzip sudo \
+           ca-certificates curl git make unzip sudo shellcheck \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -14,6 +14,8 @@ RUN sudo curl -fsSL -o /usr/local/bin/cliv https://raw.githubusercontent.com/pet
     || { echo "FAILED CHECKSUM: REMOVING cliv" && sudo rm -f /usr/local/bin/cliv ; }
 
 RUN cliv -E terraform
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cliv/.bin
 
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
