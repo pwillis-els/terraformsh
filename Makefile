@@ -1,4 +1,11 @@
-all: lint readme
+all: lint test-main readme
+
+.PHONY: test test-main test-extensions lint readme
+test: test-main test-extensions
+
+test-main:
+	export PATH="`pwd`:$$PATH" ; \
+    ./test.sh tests/*.t
 
 lint:
 	shellcheck \
