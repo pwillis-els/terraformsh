@@ -6,8 +6,8 @@ set -u
 # Test that plan files don't show up
 _t_plan_files_disabled () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf"/* "$tmp/"
-    cd "$tmp"
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
+    cd "$tmp"/null-resource-hello-world.tf
     if      $testsh_pwd/terraformsh -P plan
     then
 
@@ -33,8 +33,8 @@ _t_plan_files_disabled () {
 # namely that it should run a destroy and not an apply.
 _t_plan_files_disabled_destroy () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf"/* "$tmp/"
-    cd "$tmp"
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
+    cd "$tmp"/null-resource-hello-world.tf
 
     set -e
 

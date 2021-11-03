@@ -6,8 +6,8 @@ set -u
 # Test that plan files show up
 _t_plan_files_enabled () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf"/* "$tmp/"
-    cd "$tmp"
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
+    cd "$tmp"/null-resource-hello-world.tf
     if      $testsh_pwd/terraformsh plan
     then
 
