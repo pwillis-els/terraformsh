@@ -8,42 +8,58 @@ _t_plan_files_disabled () {
     pwd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tf"/* "$tmp/"
     cd "$tmp"
-    $testsh_pwd/terraformsh -P plan
+    if      $testsh_pwd/terraformsh -P plan
+    then
 
-    TERRAFORM_PWD="$(pwd)"
-    TERRAFORM_MODULE_PWD="$TERRAFORM_PWD"
+        TERRAFORM_PWD="$(pwd)"
+        TERRAFORM_MODULE_PWD="$TERRAFORM_PWD"
 
-    # The current method of calculating plan file names (copy-paste from terraformsh):
-    TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+        # The current method of calculating plan file names (copy-paste from terraformsh):
+        TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
 
-    echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
+        echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
 
-    if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
-        echo "$base_name: ERROR: Plan file found but none expected!"
-        ls -la
-        false
+        if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
+            echo "$base_name: ERROR: Plan file found but none expected!"
+            ls -la
+            return 1
+        fi
     fi
 }
 
-# Test that plan files don't show up
+# Test that plan files don't show up when using destroy.
+# 
+# This also tests whether 'destroy' works as expected when plan files are disabled:
+# namely that it should run a destroy and not an apply.
 _t_plan_files_disabled_destroy () {
     pwd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tf"/* "$tmp/"
     cd "$tmp"
-    $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy
 
-    TERRAFORM_PWD="$(pwd)"
-    TERRAFORM_MODULE_PWD="$TERRAFORM_PWD"
+    set -e
 
-    # The current method of calculating plan file names (copy-paste from terraformsh):
-    TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+    if     $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy 2>&1 | tee test.log
+    then
 
-    echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
+        # Check for 'apply'
+        if grep 'Apply complete' test.log ; then
+            echo "$base_name: ERROR: Ran apply instead of destroy!"
+            return 1
+        fi
 
-    if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
-        echo "$base_name: ERROR: Plan file found but none expected!"
-        ls -la
-        false
+        TERRAFORM_PWD="$(pwd)"
+        TERRAFORM_MODULE_PWD="$TERRAFORM_PWD"
+
+        # The current method of calculating plan file names (copy-paste from terraformsh):
+        TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+
+        echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
+
+        if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
+            echo "$base_name: ERROR: Plan file found but none expected!"
+            ls -la
+            return 1
+        fi
     fi
 }
 

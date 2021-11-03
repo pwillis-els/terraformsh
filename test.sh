@@ -8,8 +8,8 @@ set -u
 ### How this thing works:
 ###  1. Create some shell scripts in tests/ directory, filename ending with '.t'
 ###  2. Define some functions ('_t_NAME') in that shell script
-###     Put the space-separated NAMEs of the functions in $ext_tests
-###     Make each function end with 'true' or 'false', not 'exit'
+###     a. Put the space-separated NAMEs in $ext_tests
+###     b. Register test pass/fail with 'return 0' / 'return 1'
 ###  3. Run `./test.sh tests/*.t`
 
 
