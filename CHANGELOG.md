@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.11] - 2021-11-02
+
+### Added
+ - Unit tests (only 3 so far)
+ - GitHub Actions integration
+
+### Fixed
+ - `terraformsh -P destroy` now works as expected. Before it would try to run
+     'terraform apply' rather than 'terraform destroy'.
+   You can auto-accept with `terraformsh -P -E "DESTROY_ARGS+=(-auto-accept)" destroy`
+   (or set it in a config file like ~/.terraformshrc).
+   Thanks @AMKamel for the contribution! \o/
+
+---
+
 ## [v0.10] - 2021-10-22
 ### Added
  - Handlers for 0.12upgrade and 0.13upgrade commands
