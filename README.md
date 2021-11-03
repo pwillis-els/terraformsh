@@ -247,7 +247,7 @@
 ---
 
 
-    terraformsh v0.10
+    terraformsh v0.11
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
