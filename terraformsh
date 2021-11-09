@@ -305,9 +305,9 @@ _final_vars () {
     _tf_set_datadir
 
     # Override these to change the name of the plan files
-    TF_PLANFILE="${TF_PLANFILE:-$(pwd)/tf.$TF_DD_UNIQUE_NAME.plan}"
-    TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-$(pwd)/tf-destroy.$TF_DD_UNIQUE_NAME.plan}"
-    TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-$(pwd)/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
+    TF_PLANFILE="${TF_PLANFILE:-${TERRAFORM_PWD}/tf.$TF_DD_UNIQUE_NAME.plan}"
+    TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-${TERRAFORM_PWD}/tf-destroy.$TF_DD_UNIQUE_NAME.plan}"
+    TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
 
     if [ "$USE_PLANFILE" -eq 1 ] ; then
         PLAN_ARGS+=("-out=$TF_PLANFILE")
