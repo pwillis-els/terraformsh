@@ -81,74 +81,85 @@ declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_
 
 _cmd_plan () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    [ $USE_PLANFILE -eq 1 ] && args+=("-out=$TF_PLANFILE")
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "${args[@]}"
 }
 _cmd_apply () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    declare -a args=()
+    declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
-    # Pass plan file after '$@'
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "$@" "${args[@]}" && rm -f "$TF_PLANFILE"
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    [ $USE_PLANFILE -eq 1 ] && args+=("-out=$TF_DESTROY_PLANFILE")
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" "${args[@]}"
 }
 _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    declare -a args=("$@")
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
-        # Pass '$@" before DESTROY_ARGS so we don't override a passed plan file
-        _runcmd "$TERRAFORM" destroy "$@" "${DESTROY_ARGS[@]}"
+        _runcmd "$TERRAFORM" destroy "${args[@]}" "${DESTROY_ARGS[@]}"
     else
-        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" "$TF_DESTROY_PLANFILE" && rm -f "$TF_DESTROY_PLANFILE"
+        args=+("$TF_DESTROY_PLANFILE") # Pass plan file after '$@'
+        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "${args[@]}" && rm -f "$TF_DESTROY_PLANFILE"
     fi
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
+    declare -a args=("$@")
     declare -a tfver_a=($(_tf_ver))
     # If terraform version < 0.12, pass VARFILE_ARG to validate. Otherwise it's deprecated
     if [ "${tfver_a[0]:-}" = "0" ] && [ ${tfver_a[1]:-} -lt 12 ] ; then
-        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}" "$@"
-    else
-        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "$@"
+        args+=("${VARFILE_ARG[@]}")
     fi
+    _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${args[@]}"
 }
 _cmd_get () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
-    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "${args[@]}"
 }
 _cmd_refresh() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "${args[@]}"
 }
 _cmd_0.12upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "${args[@]}"
 }
 _cmd_0.13upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "${args[@]}"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
-    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${args[@]}"
 }
 _cmd_import () {
-    _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "${args[@]}"
 }
 _cmd_state () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
-    # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
-    declare -a _args=() _opts=("$@")
-    local _cmd=""
-    if [ ${#_opts[@]} -gt 0 ] ; then
-        _cmd="$1"; shift
-        _args+=("${_opts[@]:1}")
+    declare -a args=()
+    if [ $# -gt 0 ] ; then
+        # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
+        # so that the options come after the sub-command, not after 'terraform state'.
+        args+=("$1") ; shift
     fi
-    _runcmd "$TERRAFORM" state "$_cmd" "${STATE_ARGS[@]}" "${_args[@]}"
+    args=+("${STATE_ARGS[@]}")
+    args+=("$@")
+    _runcmd "$TERRAFORM" state "${args[@]}"
 }
 _cmd_catchall () {
     _runcmd "$TERRAFORM" "$@"
@@ -330,12 +341,6 @@ _final_vars () {
     TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-${TERRAFORM_PWD}/tf-destroy.$TF_DD_UNIQUE_NAME.plan}"
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
 
-    if [ "$USE_PLANFILE" -eq 1 ] ; then
-        PLAN_ARGS+=("-out=$TF_PLANFILE")
-        APPLY_ARGS+=("$TF_PLANFILE")
-        PLANDESTROY_ARGS+=("-out=$TF_DESTROY_PLANFILE")
-        DESTROY_ARGS+=("$TF_DESTROY_PLANFILE")
-    fi
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
         echo "$0: WARNING: No -b option passed! Potentially using only local state." 1>&2
         echo "" 1>&2
