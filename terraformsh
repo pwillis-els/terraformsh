@@ -81,50 +81,56 @@ declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_
 
 _cmd_plan () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}"
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "$@"
 }
 _cmd_apply () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "$@" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}"
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" "$@"
 }
 _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
-        _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}"
+        _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}" "$@"
     else
-        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
+        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" && rm -f "$TF_DESTROY_PLANFILE"
     fi
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
-    _runcmd "$TERRAFORM" validate "${VARFILE_ARG[@]}"
+    declare -a tfver_a=($(_tf_ver))
+    # If terraform version < 0.12, pass VARFILE_ARG to validate. Otherwise it's deprecated
+    if [ "${tfver_a[0]:-}" = "0" ] && [ ${tfver_a[1]:-} -lt 12 ] ; then
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}" "$@"
+    else
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "$@"
+    fi
 }
 _cmd_get () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
-    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}"
+    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "$@"
 }
 _cmd_refresh() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}"
+    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "$@"
 }
 _cmd_0.12upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}"
+    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "$@"
 }
 _cmd_0.13upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}"
+    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "$@"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
-    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}"
+    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "$@"
 }
 _cmd_import () {
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
@@ -133,7 +139,7 @@ _cmd_state () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
     # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
     declare -a _args=() _opts=("$@")
-    _cmd=""
+    local _cmd=""
     if [ ${#_opts[@]} -gt 0 ] ; then
         _cmd="$1"; shift
         _args+=("${_opts[@]:1}")
@@ -163,11 +169,11 @@ _cmd_clean () {
 }
 _cmd_approve () {
     echo ""
-    read -p "Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
+    read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
     if [ "$APPROVE" = "YES" ] ; then
-        echo "Approval given; continuing!"
+        echo "$0: Approval given; continuing!"
     else
-        echo "Approval not given; exiting!"
+        echo "$0: Approval not given; exiting!"
         exit 1
     fi
     echo ""
@@ -231,13 +237,23 @@ _cmd_aws_bootstrap () {
     # Set an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
 
-    echo "Sleeping 60 seconds before querying bucket again ..." 1>&2
+    echo "$0: Sleeping 60 seconds before querying bucket again ..." 1>&2
     sleep 60
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
 }
 _cleanup_tmp () { 
     if [ -n "${TF_TMPDIR:-}" ]; then rm -rf "$TF_TMPDIR"; fi
+}
+_tf_ver () {
+    local tf_ver
+    tf_ver="$($TERRAFORM --help | grep '^Terraform v' | cut -d 'v' -f 2)"
+    if [ $? -ne 0 ] ; then
+        echo "$0: Error: 'terraform --help' failed?" 1>&2
+        return 1
+    fi
+    IFS=. read -r -a tfver_a <<< "${tf_ver}"
+    printf "%s\n" "${tfver_a[@]}"
 }
 _tf_set_datadir () {
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
@@ -284,6 +300,7 @@ _default_vars () {
     INIT_ARGS=("-input=false" "-reconfigure" "-force-copy")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
+    VALIDATE_ARGS=("")
     STATE_ARGS=()
 
     TERRAFORM_PWD="$(pwd)"
@@ -426,7 +443,7 @@ SHOW_HELP=0
 declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
-declare -a CMDS=() CONF_FILE=()
+declare -a CMDS=() CONF_FILE=() OPTS=()
 
 _default_vars
 
@@ -462,7 +479,6 @@ _load_conf
 
 [ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
 
-declare -a OPTS=()
 _process_cmds
 _pre_dirchange_vars
 _dirchange
