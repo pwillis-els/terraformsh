@@ -85,7 +85,8 @@ _cmd_plan () {
 }
 _cmd_apply () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "$@" && rm -f "$TF_PLANFILE"
+    # Pass '$@" before APPLY_ARGS so we don't override a passed plan file
+    _runcmd "$TERRAFORM" apply "$@" "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
@@ -94,7 +95,8 @@ _cmd_plan_destroy () {
 _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
-        _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}" "$@"
+        # Pass '$@" before DESTROY_ARGS so we don't override a passed plan file
+        _runcmd "$TERRAFORM" destroy "$@" "${DESTROY_ARGS[@]}"
     else
         _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" && rm -f "$TF_DESTROY_PLANFILE"
     fi
