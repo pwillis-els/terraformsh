@@ -45,6 +45,9 @@ _usage () {
     -N              Dry-run mode (don't execute anything).
                     (config: DRYRUN=1)
 
+    -n              Don't remove the temporary TF_DATA_DIR.
+                    (config: NO_CLEANUP_TMP=1)
+
     -v              Verbose mode.
                     (config: DEBUG=1)
 
@@ -257,8 +260,16 @@ _cmd_aws_bootstrap () {
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
 }
-_cleanup_tmp () { 
-    if [ -n "${TF_TMPDIR:-}" ]; then rm -rf "$TF_TMPDIR"; fi
+_cleanup_tmp () {
+    if [ $? -ne 0 ] ; then
+        echo "$0: Error detected; not removing '${TF_TMPDIR:-}'"
+    else
+        if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
+            echo "$0: Not removing temporary TF_DATA_DIR '${TF_TMPDIR:-}'"
+        elif [ -n "${TF_TMPDIR:-}" ] ; then
+            rm -rf "$TF_TMPDIR"
+        fi
+    fi
 }
 _tf_ver () {
     local tf_ver
@@ -456,7 +467,7 @@ declare -a CMDS=() CONF_FILE=() OPTS=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:IPDNhv" args ; do
+while getopts "f:b:C:c:E:IPDNnhv" args ; do
     case $args in
         f)  VARFILES+=("$(_readlinkf "$OPTARG")") ;;
         b)  BACKENDVARFILES+=("$(_readlinkf "$OPTARG")") ;;
@@ -467,6 +478,7 @@ while getopts "f:b:C:c:E:IPDNhv" args ; do
         P)  USE_PLANFILE=0 ;;
         D)  NO_DEP_CMDS=1 ;;
         N)  DRYRUN=1 ;;
+        n)  NO_CLEANUP_TMP=1 ;;
         h)  SHOW_HELP=1 ;;
         v)  export DEBUG=1 ;;
         *)
