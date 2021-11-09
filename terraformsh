@@ -103,7 +103,13 @@ _cmd_destroy () {
 # require init once it gets to the providers
 _cmd_validate () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
-    _runcmd "$TERRAFORM" validate "${VARFILE_ARG[@]}"
+    declare -a tf_ver=($(_tf_ver))
+    # If terraform version < 0.12, pass VARFILE_ARG to validate. Otherwise it's deprecated
+    if [ "${tf_ver[0]:-}" = "0" ] && [ ${tf_ver[1]:-} -lt 12 ] ; then
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}"
+    else
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}"
+    fi
 }
 _cmd_get () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
@@ -163,11 +169,11 @@ _cmd_clean () {
 }
 _cmd_approve () {
     echo ""
-    read -p "Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
+    read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
     if [ "$APPROVE" = "YES" ] ; then
-        echo "Approval given; continuing!"
+        echo "$0: Approval given; continuing!"
     else
-        echo "Approval not given; exiting!"
+        echo "$0: Approval not given; exiting!"
         exit 1
     fi
     echo ""
@@ -231,13 +237,22 @@ _cmd_aws_bootstrap () {
     # Set an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
 
-    echo "Sleeping 60 seconds before querying bucket again ..." 1>&2
+    echo "$0: Sleeping 60 seconds before querying bucket again ..." 1>&2
     sleep 60
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
 }
 _cleanup_tmp () { 
     if [ -n "${TF_TMPDIR:-}" ]; then rm -rf "$TF_TMPDIR"; fi
+}
+_tf_ver () {
+    local tf_ver="$($TERRAFORM --help | grep '^Terraform v' | cut -d 'v' -f 2)"
+    if [ $? -ne 0 ] ; then
+        echo "$0: Error: 'terraform --help' failed?" 1>&2
+        return 1
+    fi
+    IFS=. read -r -a tf_ver_a <<< "${tf_ver}"
+    printf "%s\n" "${tf_ver_a[@]}"
 }
 _tf_set_datadir () {
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
@@ -284,6 +299,7 @@ _default_vars () {
     INIT_ARGS=("-input=false" "-reconfigure" "-force-copy")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
+    VALIDATE_ARGS=("")
     STATE_ARGS=()
 
     TERRAFORM_PWD="$(pwd)"
