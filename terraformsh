@@ -103,10 +103,10 @@ _cmd_destroy () {
 # require init once it gets to the providers
 _cmd_validate () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
-    declare -a tf_ver=($(_tf_ver))
+    declare -a tfver_a=($(_tf_ver))
     # If terraform version < 0.12, pass VARFILE_ARG to validate. Otherwise it's deprecated
-    if [ "${tf_ver[0]:-}" = "0" ] && [ ${tf_ver[1]:-} -lt 12 ] ; then
-        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}"
+    if [ "${tfver_a[0]:-}" = "0" ] && [ ${tfver_a[1]:-} -lt 12 ] ; then
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}" "$@"
     else
         _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}"
     fi
@@ -139,7 +139,7 @@ _cmd_state () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
     # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
     declare -a _args=() _opts=("$@")
-    _cmd=""
+    local _cmd=""
     if [ ${#_opts[@]} -gt 0 ] ; then
         _cmd="$1"; shift
         _args+=("${_opts[@]:1}")
@@ -246,13 +246,14 @@ _cleanup_tmp () {
     if [ -n "${TF_TMPDIR:-}" ]; then rm -rf "$TF_TMPDIR"; fi
 }
 _tf_ver () {
-    local tf_ver="$($TERRAFORM --help | grep '^Terraform v' | cut -d 'v' -f 2)"
+    local tf_ver
+    tf_ver="$($TERRAFORM --help | grep '^Terraform v' | cut -d 'v' -f 2)"
     if [ $? -ne 0 ] ; then
         echo "$0: Error: 'terraform --help' failed?" 1>&2
         return 1
     fi
-    IFS=. read -r -a tf_ver_a <<< "${tf_ver}"
-    printf "%s\n" "${tf_ver_a[@]}"
+    IFS=. read -r -a tfver_a <<< "${tf_ver}"
+    printf "%s\n" "${tfver_a[@]}"
 }
 _tf_set_datadir () {
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
@@ -442,7 +443,7 @@ SHOW_HELP=0
 declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
-declare -a CMDS=() CONF_FILE=()
+declare -a CMDS=() CONF_FILE=() OPTS=()
 
 _default_vars
 
@@ -478,7 +479,6 @@ _load_conf
 
 [ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
 
-declare -a OPTS=()
 _process_cmds
 _pre_dirchange_vars
 _dirchange
