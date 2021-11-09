@@ -251,9 +251,9 @@ _cleanup_tmp () {
 }
 _tf_ver () {
     local tf_ver
-    tf_ver="$($TERRAFORM --help | grep '^Terraform v' | cut -d 'v' -f 2)"
+    tf_ver="$($TERRAFORM --version | grep '^Terraform v' | cut -d 'v' -f 2)"
     if [ $? -ne 0 ] ; then
-        echo "$0: Error: 'terraform --help' failed?" 1>&2
+        echo "$0: Error: 'terraform --version' failed?" 1>&2
         return 1
     fi
     IFS=. read -r -a tfver_a <<< "${tf_ver}"
