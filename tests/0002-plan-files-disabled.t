@@ -27,6 +27,32 @@ _t_plan_files_disabled () {
     fi
 }
 
+# Test that plan files don't show up when CD_DIR= is used
+_t_plan_files_disabled_cd_dir () {
+    pwd
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
+    mkdir -p "$tmp/rundir"
+    cd "$tmp"/rundir
+    if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tf" -P plan
+    then
+
+        TERRAFORM_PWD="$(pwd)"
+        TERRAFORM_MODULE_PWD="$tmp/null-resource-hello-world.tf"
+
+        # The current method of calculating plan file names (copy-paste from terraformsh):
+        TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+
+        echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
+
+        if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
+            echo "$base_name: ERROR: Plan file found but none expected!"
+            ls -la
+            return 1
+        fi
+    fi
+}
+
+
 # Test that plan files don't show up when using destroy.
 # 
 # This also tests whether 'destroy' works as expected when plan files are disabled:
@@ -63,4 +89,4 @@ _t_plan_files_disabled_destroy () {
     fi
 }
 
-ext_tests="plan_files_disabled plan_files_disabled_destroy"
+ext_tests="plan_files_disabled plan_files_disabled_cd_dir plan_files_disabled_destroy"
