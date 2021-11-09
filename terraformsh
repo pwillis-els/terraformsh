@@ -103,7 +103,7 @@ _cmd_destroy () {
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
         _runcmd "$TERRAFORM" destroy "${args[@]}" "${DESTROY_ARGS[@]}"
     else
-        args=+("$TF_DESTROY_PLANFILE") # Pass plan file after '$@'
+        args+=("$TF_DESTROY_PLANFILE") # Pass plan file after '$@'
         _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "${args[@]}" && rm -f "$TF_DESTROY_PLANFILE"
     fi
 }
@@ -157,7 +157,7 @@ _cmd_state () {
         # so that the options come after the sub-command, not after 'terraform state'.
         args+=("$1") ; shift
     fi
-    args=+("${STATE_ARGS[@]}")
+    args+=("${STATE_ARGS[@]}")
     args+=("$@")
     _runcmd "$TERRAFORM" state "${args[@]}"
 }
