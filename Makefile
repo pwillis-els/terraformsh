@@ -23,6 +23,10 @@ lint:
         --exclude=SC1090 \
         --exclude=SC2166 \
         --exclude=SC2046 \
+        --exclude=SC2120 \
+        --exclude=SC2207 \
+        --exclude=SC2119 \
+        --exclude=SC2181 \
         terraformsh
 
 readme:
