@@ -85,8 +85,10 @@ _cmd_plan () {
 }
 _cmd_apply () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    # Pass '$@" before APPLY_ARGS so we don't override a passed plan file
-    _runcmd "$TERRAFORM" apply "$@" "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
+    declare -a args=()
+    [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
+    # Pass plan file after '$@'
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "$@" "${args[@]}" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
@@ -98,7 +100,7 @@ _cmd_destroy () {
         # Pass '$@" before DESTROY_ARGS so we don't override a passed plan file
         _runcmd "$TERRAFORM" destroy "$@" "${DESTROY_ARGS[@]}"
     else
-        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" && rm -f "$TF_DESTROY_PLANFILE"
+        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" "$TF_DESTROY_PLANFILE" && rm -f "$TF_DESTROY_PLANFILE"
     fi
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
