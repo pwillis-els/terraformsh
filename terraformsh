@@ -81,22 +81,22 @@ declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_
 
 _cmd_plan () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}"
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "$@"
 }
 _cmd_apply () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" && rm -f "$TF_PLANFILE"
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "$@" && rm -f "$TF_PLANFILE"
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
-    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}"
+    _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" "$@"
 }
 _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
-        _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}"
+        _runcmd "$TERRAFORM" destroy "${DESTROY_ARGS[@]}" "$@"
     else
-        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" && rm -f "$TF_DESTROY_PLANFILE"
+        _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "$@" && rm -f "$TF_DESTROY_PLANFILE"
     fi
 }
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
@@ -108,29 +108,29 @@ _cmd_validate () {
     if [ "${tfver_a[0]:-}" = "0" ] && [ ${tfver_a[1]:-} -lt 12 ] ; then
         _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${VARFILE_ARG[@]}" "$@"
     else
-        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}"
+        _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "$@"
     fi
 }
 _cmd_get () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
-    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}"
+    _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "$@"
 }
 _cmd_refresh() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}"
+    _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "$@"
 }
 _cmd_0.12upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}"
+    _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "$@"
 }
 _cmd_0.13upgrade() {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
-    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}"
+    _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "$@"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
-    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}"
+    _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "$@"
 }
 _cmd_import () {
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "$@"
