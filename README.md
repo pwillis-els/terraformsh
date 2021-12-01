@@ -283,6 +283,9 @@
     -N              Dry-run mode (don't execute anything).
                     (config: DRYRUN=1)
 
+    -n              Don't remove the temporary TF_DATA_DIR.
+                    (config: NO_CLEANUP_TMP=1)
+
     -v              Verbose mode.
                     (config: DEBUG=1)
 

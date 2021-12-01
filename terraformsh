@@ -164,6 +164,17 @@ _cmd_state () {
     args+=("$@")
     _runcmd "$TERRAFORM" state "${args[@]}"
 }
+_cmd_workspace () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
+    declare -a args=()
+    if [ $# -gt 0 ] ; then
+        # 'terraform workspace' takes no options, but its commands do, so we play argument musical chairs
+        args+=("$1") ; shift
+    fi
+    args+=("${STATE_ARGS[@]}")
+    args+=("$@")
+    _runcmd "$TERRAFORM" workspace "${args[@]}"
+}
 _cmd_catchall () {
     _runcmd "$TERRAFORM" "$@"
 }
@@ -189,12 +200,10 @@ _cmd_approve () {
     echo ""
     read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
     if [ "$APPROVE" = "YES" ] ; then
-        echo "$0: Approval given; continuing!"
+        echo "$0: Approval given; continuing!" ; echo ""
     else
-        echo "$0: Approval not given; exiting!"
-        exit 1
+        echo "$0: Approval not given; exiting!" ; exit 1
     fi
-    echo ""
 }
 # This function is used to bootstrap a new AWS remote state file.
 # You would typically run this in a brand new region, or for a brand new
@@ -213,7 +222,7 @@ _cmd_aws_bootstrap () {
     done
 
     if [ -z "${BACKEND_BUCKET:-}" ] || [ -z "${BACKEND_TABLE:-}" ] ; then
-        echo "$0: Error: make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
+        echo "$0: Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
         exit 1
     fi
 
@@ -383,43 +392,60 @@ _load_parent_tffiles () {
         while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
     fi
 }
+# This function takes an array and processes it for arguments from the Terraformsh
+# command-line. First it grabs TFVARS files. Then it takes Terraform commands
+# and arguments and splits theme up into pairs. The result is stuffed into the
+# CMD_PAIRS global array, since we can't return arrays in Bash.
 _process_cmds () {
-    declare -a tmpcmds=()
-    for cmd in "${CMDS[@]}" ; do
+    declare -a cmds=("$@")
+    local s=0 i=0 found_cmds=0 cpi=0
+    # First extract any TFVARS passed as initial arguments
+    while [ $s -lt ${#cmds[@]} ] ; do
+        cmd="${cmds[$s]}"
         # If a config file was passed as a command, add them as options
         if    [ ! "$(expr "$cmd" : ".*\.backend\.tfvars$")" = "0" ] \
               || [ ! "$(expr "$cmd" : ".*\.backend\.sh\.tfvars$")" = "0" ] \
               || [ ! "$(expr "$cmd" : ".*\.backend$")" = "0" ]
         then  BACKENDVARFILES+=("$(_readlinkf "$cmd")")
-
         elif  [ "$(expr "$cmd" : ".*\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.tfvars\.json$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars\.json$")" -ne 0 ]
         then  VARFILES+=("$(_readlinkf "$cmd")")
-
-        else
-            valid_cmd=0
-            for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
-                if [ "$possiblecmd" = "$cmd" ] ; then
-                  tmpcmds+=("$cmd") ; valid_cmd=1 ; break
-                fi
-            done
-            if [ $valid_cmd -eq 0 ] ; then
-                echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead" 1>&2
-                OPTS+=("$cmd")
+        else  break
+        fi
+        let "s = $s + 1"
+    done
+    # Then skip those TFVARS and start extracting commands and options, putting
+    # them into arrays in CMD_PAIRS.
+    cpi=${#CMD_PAIRS[@]} # Save this for later, in case this array was already
+                         # populated before this function
+    for cmd in "${cmds[@]:$s}" ; do
+        local valid_cmd=0
+        for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
+            if [ "$possiblecmd" = "$cmd" ] ; then
+                valid_cmd=1
+                [ $found_cmds -gt 0 ] && let "i = $i + 1"
+                break
             fi
+        done
+        if [ $valid_cmd -eq 0 ] ; then
+            if [ $found_cmds -lt 1 ] ; then
+                echo "$0: Error: Found a non-command '$cmd' before a command was found" ; exit 1
+            fi
+            echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead" 1>&2
+            CMD_PAIRS[$i]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
+        else
+            echo "$0: Info: Found terraform command '$cmd'" 1>&2
+            CMD_PAIRS[$i]="array=($(printf "%q" "$cmd")" # Yes this has a leading '(' 
+            let "found_cmds = $found_cmds + 1"
         fi
     done
-    CMDS=("${tmpcmds[@]}")
-    if [ ${#CMDS[@]} -lt 1 ] ; then
-        echo "$0: Error: No COMMAND was specified"
-        echo ""
-        _usage
-    fi
-    if [ ${#CMDS[@]} -gt 1 ] && [ ${#OPTS[@]} -gt 0 ] ; then
-        echo "$0: Error: you passed multiple commands with some non-command arguments; you can only pass non-command arguments with a single valid command."
-        exit 1
+    for (( i = cpi; i < ${#CMD_PAIRS[@]}; i++ )) ; do
+        CMD_PAIRS[$i]+=")"
+    done
+    if [ $(( ${#cmds[@]} - $s )) -lt 1 ] ; then
+        echo "$0: Error: No COMMAND was specified"; echo ""; _usage
     fi
 }
 _dirchange () {
@@ -463,7 +489,7 @@ SHOW_HELP=0
 declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
-declare -a CMDS=() CONF_FILE=() OPTS=()
+declare -a CMDS=() CMD_PAIRS=() CONF_FILE=()
 
 _default_vars
 
@@ -482,8 +508,7 @@ while getopts "f:b:C:c:E:IPDNnhv" args ; do
         h)  SHOW_HELP=1 ;;
         v)  export DEBUG=1 ;;
         *)
-            echo "$0: Error: unknown option $args" ;
-            exit 1 ;;
+            echo "$0: Error: unknown option $args" ; exit 1 ;;
     esac
 done
 shift $(($OPTIND-1))
@@ -500,15 +525,17 @@ _load_conf
 
 [ ${#CMDS[@]} -eq 0 ] && CMDS=("$@")
 
-_process_cmds
+_process_cmds "${CMDS[@]}"
 _pre_dirchange_vars
 _dirchange
 _final_vars
 
-for name in "${CMDS[@]}" ; do
+for pair in "${CMD_PAIRS[@]}" ; do
+    eval "$pair"
+    name="${array[0]}" # array is defined in 'eval $pair'
     if command -v _cmd_"$name" >/dev/null ; then
-        _cmd_"$name" "${OPTS[@]}"
+        _cmd_"$name" "${array[@]:1}"
     else 
-        _cmd_catchall "$name" "${OPTS[@]}"
+        _cmd_catchall "$name" "${array[@]:1}"
     fi
 done
