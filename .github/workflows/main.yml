@@ -9,7 +9,33 @@ jobs:
   test_pull_request:
     name: Run tests on a pull request
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_HOST: postgres
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        # set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
+
+      ## queries database with postgres client
+      #- name: Query database
+      #  run: psql -h postgres -d postgres -U postgres -c 'SELECT 1;'
+      #  env:
+      #    PGPASSWORD: password
+
       - name: Checkout git
         uses: actions/checkout@v2
 

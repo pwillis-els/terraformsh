@@ -6,8 +6,8 @@ set -u
 # Test that plan files don't show up
 _t_plan_files_disabled () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
-    cd "$tmp"/null-resource-hello-world.tf
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    cd "$tmp"/null-resource-hello-world.tfd
     if      $testsh_pwd/terraformsh -P plan
     then
 
@@ -30,14 +30,14 @@ _t_plan_files_disabled () {
 # Test that plan files don't show up when CD_DIR= is used
 _t_plan_files_disabled_cd_dir () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     mkdir -p "$tmp/rundir"
     cd "$tmp"/rundir
-    if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tf" -P plan
+    if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tfd" -P plan
     then
 
         TERRAFORM_PWD="$(pwd)"
-        TERRAFORM_MODULE_PWD="$tmp/null-resource-hello-world.tf"
+        TERRAFORM_MODULE_PWD="$tmp/null-resource-hello-world.tfd"
 
         # The current method of calculating plan file names (copy-paste from terraformsh):
         TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
@@ -59,8 +59,8 @@ _t_plan_files_disabled_cd_dir () {
 # namely that it should run a destroy and not an apply.
 _t_plan_files_disabled_destroy () {
     pwd
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf" "$tmp/"
-    cd "$tmp"/null-resource-hello-world.tf
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    cd "$tmp"/null-resource-hello-world.tfd
 
     set -e
 
