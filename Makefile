@@ -15,19 +15,7 @@ docker-test-main-run: docker-test-main-build
 
 
 lint:
-	shellcheck \
-        --exclude=SC2086 \
-        --exclude=SC2162 \
-        --exclude=SC1091 \
-        --exclude=SC2004 \
-        --exclude=SC1090 \
-        --exclude=SC2166 \
-        --exclude=SC2046 \
-        --exclude=SC2120 \
-        --exclude=SC2207 \
-        --exclude=SC2119 \
-        --exclude=SC2181 \
-        terraformsh
+	shellcheck terraformsh
 
 readme:
 	cat README.md.tmpl > README.md
