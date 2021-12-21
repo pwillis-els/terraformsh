@@ -432,7 +432,6 @@ _process_cmds () {
     # them into arrays in CMD_PAIRS.
     cpi=${#CMD_PAIRS[@]} # Save this for later, in case this array was already
     p=$cpi               # populated before this function.
-    echo "ok"
     prev='' prevcmd=''
     #for (( i = s; i < (${#cmds[@]}-s) ; i++ )) ; do
     for cmd in "${cmds[@]:$s}" ; do
