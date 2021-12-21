@@ -133,20 +133,25 @@ _cmd_get () {
     declare -a args=("$@")
     _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "${args[@]}"
 }
-_cmd_refresh() {
+_cmd_refresh () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "${args[@]}"
 }
-_cmd_0.12upgrade() {
+_cmd_0.12upgrade () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "${args[@]}"
 }
-_cmd_0.13upgrade() {
+_cmd_0.13upgrade () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "${args[@]}"
+}
+_cmd_console () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" console "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
 }
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
@@ -343,6 +348,7 @@ _default_vars () {
     GET_ARGS=("-update=true")
     VALIDATE_ARGS=("")
     STATE_ARGS=()
+    CONSOLE_ARGS=()
 
     TERRAFORM_PWD="$(pwd)"
 }
