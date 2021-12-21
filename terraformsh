@@ -281,7 +281,7 @@ _cmd_aws_bootstrap () {
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
 }
 _cleanup_tmp () {
-    if [ $? -ne 0 ] ; then
+    if [ "${NO_CLEANUP_TMP_ON_ERROR:-0}" = "1" ] ; then
         echo "$0: Error detected; not removing '${TF_TMPDIR:-}'"
     else
         if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
