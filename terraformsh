@@ -76,7 +76,13 @@ _usage () {
 EOTUSAGE
     exit 1
 }
-declare -a TF_COMMANDS=(0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint untaint validate version workspace)
+# Commands collected from versions 0.11,0.12,0.13,0.14,0.15,1.0,1.1
+declare -a TF_COMMANDS=(0.12checklist 0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint test untaint validate version workspace)
+declare -a TF_CMDS_debug=(json2dot)
+declare -a TF_CMDS_env=(delete list new select)
+declare -a TF_CMDS_providers=(lock mirror schema)
+declare -a TF_CMDS_state=(list mv pull push replace-provider rm show)
+declare -a TF_CMDS_workspace=(delete list new select show)
 declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_bootstrap)
 
 # ---------------------------------------------------------------------------------------- #
@@ -362,7 +368,7 @@ _final_vars () {
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
 
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-        echo "$0: WARNING: No -b option passed! Potentially using only local state." 1>&2
+        echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
         echo "" 1>&2
         sleep 1
     else
@@ -398,7 +404,7 @@ _load_parent_tffiles () {
 # CMD_PAIRS global array, since we can't return arrays in Bash.
 _process_cmds () {
     declare -a cmds=("$@")
-    local s=0 i=0 found_cmds=0 cpi=0
+    local s=0 p=0 found_cmds=0 cpi=0
     # First extract any TFVARS passed as initial arguments
     while [ $s -lt ${#cmds[@]} ] ; do
         cmd="${cmds[$s]}"
@@ -414,35 +420,51 @@ _process_cmds () {
         then  VARFILES+=("$(_readlinkf "$cmd")")
         else  break
         fi
-        let "s = $s + 1"
+        s=$((s+1))
     done
     # Then skip those TFVARS and start extracting commands and options, putting
     # them into arrays in CMD_PAIRS.
     cpi=${#CMD_PAIRS[@]} # Save this for later, in case this array was already
-                         # populated before this function
+    p=$cpi               # populated before this function.
+    echo "ok"
+    prev='' prevcmd=''
+    #for (( i = s; i < (${#cmds[@]}-s) ; i++ )) ; do
     for cmd in "${cmds[@]:$s}" ; do
         local valid_cmd=0
         for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
             if [ "$possiblecmd" = "$cmd" ] ; then
+                if [ "$prev" = "cmd" ] && declare -p "TF_CMDS_$prevcmd" 2>/dev/null 1>&2 ; then
+                    declare -n arr="TF_CMDS_$prevcmd"
+                    for subcmd in "${arr[@]}" ; do
+                        [ "$subcmd" = "$cmd" ] && valid_cmd=2 && break
+                    done
+                fi
+                [ $valid_cmd -eq 2 ] && break
                 valid_cmd=1
-                [ $found_cmds -gt 0 ] && let "i = $i + 1"
+                [ $found_cmds -gt 0 ] && p=$((p+1))
                 break
             fi
         done
-        if [ $valid_cmd -eq 0 ] ; then
+        if [ $valid_cmd -eq 0 ] || [ $valid_cmd -eq 2 ] ; then
             if [ $found_cmds -lt 1 ] ; then
-                echo "$0: Error: Found a non-command '$cmd' before a command was found" ; exit 1
+                echo "$0: Error: Found non-command '$cmd' before a command was found" ; exit 1
             fi
-            echo "$0: WARNING: '$cmd' is not a valid command; passing as an option instead" 1>&2
-            CMD_PAIRS[$i]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
+            [ $valid_cmd -eq 0 ] && \
+                echo "$0: Warning: '$cmd' is not a valid command; passing as an option instead" 1>&2
+            [ $valid_cmd -eq 2 ] && \
+                echo "$0: Warning: '$cmd' is a subcommand of previous command '$prevcmd'; passing as an option" 1>&2
+            CMD_PAIRS[$p]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
+            prev="opt"
         else
             echo "$0: Info: Found terraform command '$cmd'" 1>&2
-            CMD_PAIRS[$i]="array=($(printf "%q" "$cmd")" # Yes this has a leading '(' 
-            let "found_cmds = $found_cmds + 1"
+            CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '(' 
+            found_cmds=$((found_cmds+1))
+            prev="cmd"
+            prevcmd="$cmd"
         fi
     done
-    for (( i = cpi; i < ${#CMD_PAIRS[@]}; i++ )) ; do
-        CMD_PAIRS[$i]+=")"
+    for (( p = cpi; p < ${#CMD_PAIRS[@]}; p++ )) ; do
+        CMD_PAIRS[$p]+=")"
     done
     if [ $(( ${#cmds[@]} - $s )) -lt 1 ] ; then
         echo "$0: Error: No COMMAND was specified"; echo ""; _usage
