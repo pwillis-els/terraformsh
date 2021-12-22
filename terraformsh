@@ -138,6 +138,11 @@ _cmd_refresh () {
     declare -a args=("$@")
     _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "${args[@]}"
 }
+_cmd_output () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_refresh 1>&2 # Send all previous command output to STDERR
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" output "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
+}
 _cmd_0.12upgrade () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
@@ -164,7 +169,7 @@ _cmd_import () {
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "${args[@]}"
 }
 _cmd_state () {
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2 # Send all previous command output to STDERR
     declare -a args=()
     if [ $# -gt 0 ] ; then
         # 'terraform state' takes no options, but its commands do, so we play argument musical chairs
