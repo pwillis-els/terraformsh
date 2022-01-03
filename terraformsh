@@ -308,15 +308,15 @@ _tf_ver () {
 }
 _tf_set_datadir () {
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
+    if [ -z "${TF_DD_UNIQUE_NAME:-}" ] ; then
+        # Generate a truncated MD5 hash based on the name of both the directory where
+        # we ran terraformsh from, and any '-C' option (the root module). This way we
+        # can run 'terraformsh' from the same directory on multiple root modules, and
+        # they will each end up with a different TF_DATA_DIR.
+        TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+    fi
     if [ -z "${TF_DATA_DIR:-}" ] ; then
         _cleanup_tmp
-        if [ -z "${TF_DD_UNIQUE_NAME:-}" ] ; then
-            # Generate a truncated MD5 hash based on the name of both the directory where
-            # we ran terraformsh from, and any '-C' option (the root module). This way we
-            # can run 'terraformsh' from the same directory on multiple root modules, and
-            # they will each end up with a different TF_DATA_DIR.
-            TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
-        fi
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
         mkdir -p "$TF_TMPDIR"
         trap _cleanup_tmp EXIT
