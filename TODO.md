@@ -7,3 +7,4 @@
        This would be bad if the next run of terraform would need the old state cleaned up, but it still
        exists from the previous bad run that wasn't cleaned up.
        Instead, always clean up the temp dir, unless an option is passed to explicitly keep it (-n).
+ - [ ] Implement a function to output the plan file name (without running a plan)
