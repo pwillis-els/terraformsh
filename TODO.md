@@ -8,3 +8,4 @@
        exists from the previous bad run that wasn't cleaned up.
        Instead, always clean up the temp dir, unless an option is passed to explicitly keep it (-n).
  - [ ] Implement a function to output the plan file name (without running a plan)
+ - [ ] Add a wrapper like 'terraform=0.12.31' so the user can quickly call specific versions of apps without having to run 'clinst -e terraform=0.12.31 terraform ....'. (Another option would be to further extend the 'missing command' bash handler)
