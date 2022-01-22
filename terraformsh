@@ -161,6 +161,8 @@ _cmd_console () {
 # Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
+    [ "${_already_ran_cmd_init:-0}" = "1" ] && return 0
+    _already_ran_cmd_init=1
     declare -a args=("$@")
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${args[@]}"
 }
