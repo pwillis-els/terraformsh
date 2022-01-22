@@ -141,7 +141,7 @@ _cmd_refresh () {
 _cmd_output () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_refresh 1>&2 # Send all previous command output to STDERR
     declare -a args=("$@")
-    _runcmd "$TERRAFORM" output "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
+    _runcmd "$TERRAFORM" output "${VARFILE_ARG[@]}" "${OUTPUT_ARGS[@]}" "${args[@]}"
 }
 _cmd_0.12upgrade () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
@@ -167,6 +167,16 @@ _cmd_init () {
 _cmd_import () {
     declare -a args=("$@")
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "${args[@]}"
+}
+_cmd_taint () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" taint "${TAINT_ARGS[@]}" "${args[@]}"
+}
+_cmd_untaint () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" untaint "${UNTAINT_ARGS[@]}" "${args[@]}"
 }
 _cmd_state () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2 # Send all previous command output to STDERR
@@ -363,6 +373,9 @@ _default_vars () {
     VALIDATE_ARGS=("")
     STATE_ARGS=()
     CONSOLE_ARGS=()
+    OUTPUT_ARGS=()
+    TAINT_ARGS=()
+    UNTAINT_ARGS=()
 
     TERRAFORM_PWD="$(pwd)"
 }
@@ -530,6 +543,7 @@ SHOW_HELP=0
 declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
+declare -a CONSOLE_ARGS=() TAINT_ARGS=() UNTAINT_ARGS=() OUTPUT_ARGS=()
 declare -a CMDS=() CMD_PAIRS=() CONF_FILE=()
 
 _default_vars
