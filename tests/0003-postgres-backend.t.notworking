@@ -22,8 +22,8 @@ _t_postgres_connection () {
 }
 
 _t_postgres_backend_plan () {
-    cp -a "$testsh_pwd/tests/null-resource-hello-world.tf/"{.terraform-version,null-hello-goodbye.tf} "$tmp/"
-    cp -a "$testsh_pwd/postgres-backend.tf/"{.terraform-version,backend.tf} "$tmp/"
+    cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd/.terraform-version" "$testsh_pwd/tests/null-resource-hello-world.tfd/null-hello-goodbye.tf" "$tmp/"
+    cp -a "$testsh_pwd/tests/postgres-backend.tfd/.terraform-version" "$testsh_pwd/tests/postgres-backend.tfd/backend.tf" "$tmp/"
     cd "$tmp"
 
     # Set the connection string for the backend using the hacky env var method

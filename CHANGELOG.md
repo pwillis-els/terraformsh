@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.12] - 2022-01-25
+
+### Added
+ - Option '-n' (NO_CLEANUP_TMP=1) prevents removing the dynamic TF_DATA_DIR
+ - Wrappers for most Terraform commands (workspace, console, output, taint, 
+   untaint, force-unlock)
+ - '-backup=' option added to 'terraformsh state rm ...' commands
+
+### Changed
+ - Removal of temporary TF_DATA_DIR is avoided only if NO_CLEANUP_TMP_ON_ERROR=1
+   . Before it would have left the directory intact on error, leading to it
+   being re-used the next time.
+ - Check for files with '-e', do not check if they're readable with '-r'
+ - Prevent re-running 'terraform init' multiple times in same session
+
+### Fixed
+ - Location of default plan file
+ - 'terraform validate' for newer versions of Terraform
+ - Passing arbitrary options to commands
+ - Detecting sub-commands of parent commands
+ - Detecting previously-set TF_DATA_DIR
+ - Run 'init' before 'import
+ - Fix running 'terraform state' with no other arguments and add missing
+   WORKSPACE_ARGS array
+
+---
+
 ## [v0.11] - 2021-11-02
 
 ### Added
@@ -16,6 +43,7 @@
 ---
 
 ## [v0.10] - 2021-10-22
+
 ### Added
  - Handlers for 0.12upgrade and 0.13upgrade commands
  - Allow overriding `TF_BACKEND_AUTO_CONFIG_FILE` and `TF_AUTO_CONFIG_FILE`
