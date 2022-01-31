@@ -200,10 +200,10 @@ _cmd_state () {
     # so that the options come after the sub-command, not after 'terraform state'.
     if [ $# -gt 0 ] ; then
         cmd="$1"; shift
+        args+=("$cmd")
     fi
-    args+=("$cmd")
     # add '-backup=' to 'terraform state rm ...' command
-    if [ "$cmd" = "rm" ] ; then
+    if [ "${cmd:-}" = "rm" ] ; then
         # shellcheck disable=SC2155
         local backupstate="$(mktemp -p "$TERRAFORM_PWD" "backup.XXXXXXXXXX.tfstate")"
         args+=("-backup=$backupstate")
@@ -216,11 +216,13 @@ _cmd_state () {
 _cmd_workspace () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
     declare -a args=()
+    local cmd
     if [ $# -gt 0 ] ; then
         # 'terraform workspace' takes no options, but its commands do, so we play argument musical chairs
-        args+=("$1") ; shift
+        cmd="$1"; shift
+        args+=("$cmd")
     fi
-    args+=("${STATE_ARGS[@]}")
+    args+=("${WORKSPACE_ARGS[@]}")
     args+=("$@")
     _runcmd "$TERRAFORM" workspace "${args[@]}"
 }
@@ -387,6 +389,7 @@ _default_vars () {
     GET_ARGS=("-update=true")
     VALIDATE_ARGS=("")
     STATE_ARGS=()
+    WORKSPACE_ARGS=()
     CONSOLE_ARGS=()
     OUTPUT_ARGS=()
     TAINT_ARGS=()
