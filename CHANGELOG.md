@@ -4,11 +4,14 @@
 
 ### Added
  - Option '-n' (NO_CLEANUP_TMP=1) prevents removing the dynamic TF_DATA_DIR
- - Wrappers for most Terraform commands (workspace, console, output, taint, untaint, force-unlock)
+ - Wrappers for most Terraform commands (workspace, console, output, taint, 
+   untaint, force-unlock)
  - '-backup=' option added to 'terraformsh state rm ...' commands
 
 ### Changed
- - Removal of temporary TF_DATA_DIR is avoided only if NO_CLEANUP_TMP_ON_ERROR=1 . Before it would have left the directory intact on error, leading to it being re-used the next time.
+ - Removal of temporary TF_DATA_DIR is avoided only if NO_CLEANUP_TMP_ON_ERROR=1
+   . Before it would have left the directory intact on error, leading to it
+   being re-used the next time.
  - Check for files with '-e', do not check if they're readable with '-r'
  - Prevent re-running 'terraform init' multiple times in same session
 
@@ -19,6 +22,8 @@
  - Detecting sub-commands of parent commands
  - Detecting previously-set TF_DATA_DIR
  - Run 'init' before 'import
+ - Fix running 'terraform state' with no other arguments and add missing
+   WORKSPACE_ARGS array
 
 ---
 
