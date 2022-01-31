@@ -247,7 +247,7 @@
 ---
 
 
-    terraformsh v0.11
+    terraformsh v0.12
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -256,58 +256,64 @@
   TFVARS or COMMANDs.
 
     -f FILE         A file passed to Terraform's -var-file option.
-                    (config: VARFILES=)
-
+                      ( config: VARFILES= )
     -b FILE         A file passed to Terraform's -backend-config option.
-                    (config: BACKENDVARFILES=)
-
+                      ( config: BACKENDVARFILES= )
     -C DIR          Change to directory DIR.
-                    (config: CD_DIR=)
-
-    -c file         Specify a '.terraformshrc' configuration file to load
-
+                      ( config: CD_DIR= )
+    -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
-
     -I              Disables automatically loading any 'terraform.sh.tfvars',
                     'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
                     found while recursively searching parent directories.
-                    (config: INHERIT_TFFILES=0)
-
+                      ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
-                    (config: USE_PLANFILE=0)
-
+                      ( config: USE_PLANFILE=0 )
     -D              Don't run 'dependency' commands (e.g. don't run "terraform
                     init" before "terraform apply").
-                    (config: NO_DEP_CMDS=1)
-
+                      ( config: NO_DEP_CMDS=1 )
     -N              Dry-run mode (don't execute anything).
-                    (config: DRYRUN=1)
-
+                      ( config: DRYRUN=1 )
     -n              Don't remove the temporary TF_DATA_DIR.
-                    (config: NO_CLEANUP_TMP=1)
-
+                      ( config: NO_CLEANUP_TMP=1 )
     -v              Verbose mode.
-                    (config: DEBUG=1)
-
-    -h              This help screen
+                      ( config: DEBUG=1 )
+    -h              This help screen.
 
 # Commands
 
-  The following are commands that terraformsh provides wrappers for. Commands
-  not listed here will be passed to terraform verbatim, along with any options.
+  The following are Terraform commands that terraformsh provides wrappers for
+  (there's some Terraformsh-specific logic behind the scenes). Other Terraform
+  commands not listed here are passed through to Terraform verbatim.
 
-    plan              Run init, get, validate, and `terraform plan -out $TF_PLANFILE`
-    apply             Run init, get, validate, and `terraform apply $TF_PLANFILE`
-    plan_destroy      Run init, get, validate, and `terraform plan -destroy -out=$TF_DESTROY_PLANFILE`
-    destroy           Run init, get, validate, and `terraform apply $TF_DESTROY_PLANFILE`
+    plan              Run init, get, validate, `terraform plan @VARFILE_ARG -out $TF_PLANFILE`
+    apply             Run init, get, validate, `terraform apply $TF_PLANFILE`
+    plan_destroy      Run init, get, validate, `terraform plan -destroy -out=$TF_DESTROY_PLANFILE`
+    destroy           Run init, get, validate, `terraform apply $TF_DESTROY_PLANFILE`
+    refresh           Run init, `terraform refresh`
+    validate          Run init, get, `terraform validate`
+    init              Run clean_modules, `terraform init @BACKENDVARFILE_ARG`
+    get               Run init, `terraform get [..]`
+    import            Run init, `terraform import [..]`
+    state             Run init, `terraform state [..]`
+    taint             Run init, `terraform taint [..]`
+    untaint           Run init, `terraform untaint [..]`
+    output            Run init, refresh, `terraform output [..]`
+    console           Run init, `terraform console [..]`
+    workspace         Run init, `terraform workspace [..]`
+    force-unlock      Run init, `terraform force-unlock [..]`
+    0.12upgrade       Run init, `terraform 0.12upgrade [..]`
+    0.13upgrade       Run init, `terraform 0.13upgrade [..]`
+
+  The following commands are specific to terraformsh:
+
     shell             Run init, get, and `bash -i -l`
-    refresh           Run init, and `terraform refresh`
-    validate          Run init, get, and `terraform validate`
-    init              Run clean_modules, and `terraform init`
     clean             Remove '.terraform/modules/*', terraform.tfstate files, and .plan files
     clean_modules     Run `rm -v -rf .terraform/modules/*`
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
-    import            Run `terraform import [...]`
-    state             RUn `terraform state [...]`
+
+All arguments after a COMMAND are evaluated for whether they match a Terraform
+or Terraformsh command; if they don't, they are assumed to be options and are
+passed to the first recognized command that precedes them.
