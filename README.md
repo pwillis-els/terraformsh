@@ -182,6 +182,13 @@
     IMPORT_ARGS=(-input=false)	# arguments for 'terraform import'
     GET_ARGS=(-update=true)	# arguments for 'terraform get'
     STATE_ARGS=()		# arguments for 'terraform state'
+    VALIDATE_ARGS=()		# arguments for 'terraform validate'
+    WORKSPACE_ARGS=()		# arguments for 'terraform workspace'
+    CONSOLE_ARGS=()		# arguments for 'terraform console
+    OUTPUT_ARGS=()		# arguments for 'terraform output'
+    TAINT_ARGS=()		# arguments for 'terraform taint'
+    UNTAINT_ARGS=()		# arguments for 'terraform untaint'
+    FORCEUNLOCK_ARGS=(-force)	# arguments for 'terraform forceunlock'
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:
