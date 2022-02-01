@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.12] - 2022-01-25
+## [v0.12] - 2022-01-31
 
 ### Added
  - Option '-n' (NO_CLEANUP_TMP=1) prevents removing the dynamic TF_DATA_DIR
