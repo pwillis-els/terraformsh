@@ -7,5 +7,6 @@
        This would be bad if the next run of terraform would need the old state cleaned up, but it still
        exists from the previous bad run that wasn't cleaned up.
        Instead, always clean up the temp dir, unless an option is passed to explicitly keep it (-n).
- - [ ] Implement a function to output the plan file name (without running a plan)
+ - [x] Implement a function to output the plan file name (without running a plan)
+       - This can be accomplished with `terraformsh -N plan 2>&1 | grep '^+ terraform plan ' | sed -e 's/.*-out=\(.\+\)\.plan.*/\1.plan/'`
  - [ ] Add a wrapper like 'terraform=0.12.31' so the user can quickly call specific versions of apps without having to run 'clinst -e terraform=0.12.31 terraform ....'. (Another option would be to further extend the 'missing command' bash handler)
