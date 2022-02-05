@@ -387,7 +387,7 @@ _default_vars () {
     INIT_ARGS=("-input=false" "-reconfigure" "-force-copy")
     IMPORT_ARGS=("-input=false")
     GET_ARGS=("-update=true")
-    VALIDATE_ARGS=("")
+    VALIDATE_ARGS=()
     STATE_ARGS=()
     WORKSPACE_ARGS=()
     CONSOLE_ARGS=()
