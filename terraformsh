@@ -147,7 +147,7 @@ _cmd_refresh () {
 _cmd_output () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_refresh 1>&2 # Send all previous command output to STDERR
     declare -a args=("$@")
-    _runcmd "$TERRAFORM" output "${VARFILE_ARG[@]}" "${OUTPUT_ARGS[@]}" "${args[@]}"
+    _runcmd "$TERRAFORM" output "${OUTPUT_ARGS[@]}" "${args[@]}"
 }
 _cmd_force-unlock () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
