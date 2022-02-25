@@ -149,14 +149,17 @@
   `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`),
   or set them as environment variables before you call Terraformsh:
 
-    DEBUG=0
-    TERRAFORM=terraform
-    TF_PLANFILE=        # Automatically populated by terraformsh
+    DEBUG=1                     # Enable bash tracing
+    TERRAFORM=terraform         # The name of the terraform executable
+    TF_PLANFILE=                # Automatically populated by terraformsh
     TF_DESTROY_PLANFILE=        # Automatically populated by terraformsh
     TF_BOOTSTAP_PLANFILE=       # Automatically populated by terraformsh
-    USE_PLANFILE=1              # Use a plan file for each apply/destroy
-    INHERIT_TFFILES=1           # Inherit tfvars files in parent directories
-    NO_DEP_CMDS=0               # Don't run dependent commands automatically
+    PUSH_ERRORED_TFSTATE=0      # Don't push errored.tfstate on failed apply
+    USE_PLANFILE=0              # Don't use a plan file for each apply/destroy
+    INHERIT_TFFILES=0           # Don't inherit tfvars files in parent directories
+    NO_DEP_CMDS=1               # Don't run dependent commands automatically
+    NO_CLEANUP_TMP=1            # Don't clean up temporary TF_DATA_DIR
+    DRYRUN=1                    # Enable dry-run mode
     CD_DIR=             # The directory to change to before running terraform commands
 
   The environment variable `TF_DATA_DIR` is automatically overridden by Terraformsh.
@@ -168,20 +171,28 @@
   The following can be set in the Terraformsh config file as Bash arrays, or you
   can set them by passing them to `-E`, such as `-E "PLAN_ARGS=(-no-color -input=false)"`.
 
-    VARFILES=()			# files to pass to -var-file
-    BACKENDVARFILES=() 		# files to pass to -backend-config
-    CMDS=()			# the commands for terraformsh to run
-    PLAN_ARGS=(-input=false)	# the arguments for 'terraform plan'
-    APPLY_ARGS=(-input=false)	# the arguments for 'terraform apply'
+    VARFILES=()                     # files to pass to -var-file
+    BACKENDVARFILES=()              # files to pass to -backend-config
+    CMDS=()                         # the commands for terraformsh to run
+    PLAN_ARGS=(-input=false)        # the arguments for 'terraform plan'
+    APPLY_ARGS=(-input=false)       # the arguments for 'terraform apply'
     PLANDESTROY_ARGS=(-input=false) # arguments for 'plan -destroy'
-    DESTROY_ARGS=(-input=false)	# arguments for 'terraform destroy'
-    REFRESH_ARGS=(-input=false)	# arguments for 'terraform refresh'
-    INIT_ARGS=(-input=false -reconfigure -force-copy)	# arguments for 'terraform init'
-    OH12UPGRADE_ARGS=(-yes)   # arguments for '0.12upgrade'
-    OH13UPGRADE_ARGS=(-yes)   # arguments for '0.13upgrade'
-    IMPORT_ARGS=(-input=false)	# arguments for 'terraform import'
-    GET_ARGS=(-update=true)	# arguments for 'terraform get'
-    STATE_ARGS=()		# arguments for 'terraform state'
+    DESTROY_ARGS=(-input=false)     # arguments for 'terraform destroy'
+    REFRESH_ARGS=(-input=false)     # arguments for 'terraform refresh'
+    INIT_ARGS=(-input=false -reconfigure -force-copy)  # arguments for 'terraform init'
+    OH12UPGRADE_ARGS=(-yes)         # arguments for '0.12upgrade'
+    OH13UPGRADE_ARGS=(-yes)         # arguments for '0.13upgrade'
+    IMPORT_ARGS=(-input=false)      # arguments for 'terraform import'
+    GET_ARGS=(-update=true)         # arguments for 'terraform get'
+    STATE_ARGS=()                   # arguments for 'terraform state'
+    VALIDATE_ARGS=()                # arguments for 'terraform validate'
+    WORKSPACE_ARGS=()               # arguments for 'terraform workspace'
+    CONSOLE_ARGS=()                 # arguments for 'terraform console
+    OUTPUT_ARGS=()                  # arguments for 'terraform output'
+    TAINT_ARGS=()                   # arguments for 'terraform taint'
+    UNTAINT_ARGS=()                 # arguments for 'terraform untaint'
+    FORCEUNLOCK_ARGS=(-force)       # arguments for 'terraform forceunlock'
+
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
   file(s) have the following variables:

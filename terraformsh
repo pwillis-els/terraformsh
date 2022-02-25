@@ -101,10 +101,23 @@ _cmd_plan () {
     _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "${args[@]}"
 }
 _cmd_apply () {
+    local errored=0
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}" && rm -f "$TF_PLANFILE"
+    [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
+    if ! _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}" ; then
+        if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
+            echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
+            if _cmd_state push errored.tfstate ; then
+                rm -f errored.tfstate
+            else
+                echo "$0: Error: could not push errored.tfstate!" ; exit 1
+            fi
+        fi
+    else
+        rm -f "$TF_PLANFILE"
+    fi
 }
 _cmd_plan_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
@@ -248,9 +261,10 @@ _cmd_clean () {
     _runcmd rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true
 }
 _cmd_approve () {
+    local approve
     echo ""
-    read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " APPROVE
-    if [ "$APPROVE" = "YES" ] ; then
+    read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " approve
+    if [ "$approve" = "YES" ] ; then
         echo "$0: Approval given; continuing!" ; echo ""
     else
         echo "$0: Approval not given; exiting!" ; exit 1
@@ -262,47 +276,47 @@ _cmd_approve () {
 # an existing S3 bucket and DynamoDB table, or create them if they don't
 # yet exist.
 _cmd_aws_bootstrap () {
+    local bucket_region
     _cmd_clean_modules
 
     # Look though the backend var files for the backend bucket and dynamodb_table
     for varfile in "${BACKENDVARFILES[@]}" ; do
-        BACKEND_BUCKET="$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" \
-            | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )"
-        BACKEND_TABLE="$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" \
-            | sed -e 's/^[[:space:]]*dynamodb_table[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )"
+        TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
+        TF_BACKEND_TABLE="${TF_BACKEND_TABLE:-$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*dynamodb_table[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
     done
 
-    if [ -z "${BACKEND_BUCKET:-}" ] || [ -z "${BACKEND_TABLE:-}" ] ; then
+    if [ -z "${TF_BACKEND_BUCKET:-}" ] || [ -z "${TF_BACKEND_TABLE:-}" ] ; then
         echo "$0: Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
         exit 1
     fi
 
-    # Set a local terraform backend
-    printf "terraform {\n\tbackend local {}\n}\n" > terraform-backend.tf
+    # Create a local terraform backend
+    printf "terraform {\n\tbackend local {}\n}\n" > terraformsh-backend.tf
+
     # First remove any existing previous local state
     _cmd_clean
     # Initialize local state
     _cmd_init
 
     # Attempt to import bucket if it exists
-    BUCKET_REGION="$(aws s3api get-bucket-location \
-        --bucket "${BACKEND_BUCKET}" --query LocationConstraint --output text \
+    bucket_region="$(aws s3api get-bucket-location \
+        --bucket "${TF_BACKEND_BUCKET}" --query LocationConstraint --output text \
         || true )"
-    if [ -n "$BUCKET_REGION" ] ; then
-        echo "$0: Info: importing existing S3 bucket '$BACKEND_BUCKET' ..." 1>&2
-        _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$BACKEND_BUCKET"
+    if [ -n "$bucket_region" ] ; then
+        echo "$0: Info: importing existing S3 bucket '$TF_BACKEND_BUCKET' ..." 1>&2
+        _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$TF_BACKEND_BUCKET"
     else
-        echo "$0: Info: Did not find existing S3 bucket '$BACKEND_BUCKET'; creating..." 1>&2
+        echo "$0: Info: Did not find existing S3 bucket '$TF_BACKEND_BUCKET'; creating..." 1>&2
     fi
 
     # Attempt to import dynamodb table if it exists
-    DYNAMODB_TABLE="$( aws dynamodb list-tables \
-        | jq -re "select(.TableNames | index(\"$BACKEND_TABLE\")) | .TableNames[]" || true )"
+    # TODO: replace 'jq' here with a --query in the AWS CLI
+    DYNAMODB_TABLE="$( aws dynamodb list-tables | jq -re "select(.TableNames | index(\"$TF_BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
-        echo "$0: Info: importing existing DynamoDB table '$BACKEND_TABLE' ..." 1>&2
-        _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$BACKEND_TABLE" || true
+        echo "$0: Info: importing existing DynamoDB table '$TF_BACKEND_TABLE' ..." 1>&2
+        _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$TF_BACKEND_TABLE" || true
     else
-        echo "$0: Info: Did not find backend table '$BACKEND_TABLE'; creating..." 1>&2
+        echo "$0: Info: Did not find backend table '$TF_BACKEND_TABLE'; creating..." 1>&2
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
@@ -312,8 +326,8 @@ _cmd_aws_bootstrap () {
         -out "$TF_BOOTSTRAP_PLANFILE"
     _runcmd "$TERRAFORM" apply -input=false "$TF_BOOTSTRAP_PLANFILE"
 
-    # Set an s3 terraform backend
-    printf "terraform {\n\tbackend s3 {}\n}\n" > terraform-backend.tf
+    # Create an s3 terraform backend
+    printf "terraform {\n\tbackend s3 {}\n}\n" > terraformsh-backend.tf
 
     echo "$0: Sleeping 60 seconds before querying bucket again ..." 1>&2
     sleep 60
@@ -522,7 +536,6 @@ _process_cmds () {
     fi
 }
 _dirchange () {
-    # Change to directories
     if [ -n "${CD_DIR:-}" ] ; then
         printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
         cd "$CD_DIR"
@@ -544,9 +557,7 @@ _rfindfiles () {
     local file="$1"
     cwd="$(pwd)"
     while [ ! "$(dirname "$cwd")" = "/" ] ; do
-        if [ -e "$cwd/$file" ] ; then
-            printf "%s\n" "$cwd/$file"
-        fi
+        [ ! -e "$cwd/$file" ] || printf "%s\n" "$cwd/$file"
         cwd="$(dirname "$cwd")"
     done
 }
@@ -605,6 +616,7 @@ _pre_dirchange_vars
 _dirchange
 _final_vars
 
+declare -a array
 for pair in "${CMD_PAIRS[@]}" ; do
     eval "$pair"
     name="${array[0]}" # array is defined in 'eval $pair'
