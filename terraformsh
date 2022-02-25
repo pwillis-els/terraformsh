@@ -241,7 +241,7 @@ _cmd_workspace () {
     _runcmd "$TERRAFORM" workspace "${args[@]}"
 }
 _cmd_show () {
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2 # Send all previous command output to STDERR
     declare -a args=("$@")
     _runcmd "$TERRAFORM" show "${SHOW_ARGS[@]}" "${args[@]}"
 }
