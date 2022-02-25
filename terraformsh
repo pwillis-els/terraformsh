@@ -56,6 +56,7 @@ _usage () {
     validate          Run init, get, \`terraform validate\`
     init              Run clean_modules, \`terraform init @BACKENDVARFILE_ARG\`
     get               Run init, \`terraform get [..]\`
+    show              Run init, \`terraform show [..]\`
     import            Run init, \`terraform import [..]\`
     state             Run init, \`terraform state [..]\`
     taint             Run init, \`terraform taint [..]\`
@@ -239,6 +240,11 @@ _cmd_workspace () {
     args+=("$@")
     _runcmd "$TERRAFORM" workspace "${args[@]}"
 }
+_cmd_show () {
+    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
+    declare -a args=("$@")
+    _runcmd "$TERRAFORM" show "${SHOW_ARGS[@]}" "${args[@]}"
+}
 _cmd_catchall () {
     _runcmd "$TERRAFORM" "$@"
 }
@@ -409,6 +415,7 @@ _default_vars () {
     TAINT_ARGS=()
     UNTAINT_ARGS=()
     FORCEUNLOCK_ARGS=("-force")
+    SHOW_ARGS=()
 
     TERRAFORM_PWD="$(pwd)"
 }

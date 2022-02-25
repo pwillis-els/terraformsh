@@ -192,6 +192,7 @@
     TAINT_ARGS=()                   # arguments for 'terraform taint'
     UNTAINT_ARGS=()                 # arguments for 'terraform untaint'
     FORCEUNLOCK_ARGS=(-force)       # arguments for 'terraform forceunlock'
+    SHOW_ARGS=()                    # arguments for 'terraform show'
 
 
   To use the 'aws_bootstrap' command, pass the '-b FILE' option and make sure the
@@ -254,6 +255,14 @@
         $ echo 'region = "us-east-2"' > ../terraform.sh.tfvars
         $ echo 'database_name = "some database"' > terraform.sh.tfvars
         $ terraformsh plan
+
+
+### Having trouble?
+
+ - **Problem: I'm using Terraformsh from two different shell sessions, in the same directory, running the same commands, but one of them is working and the other isn't. What's going on?**
+   
+   *Solution:* Something's wrong with your environment variables in one of the sessions. If both `TF_DATA_DIR` and `TF_TMPDIR` are set to something starting with `/tmp/tfsh.`, then you probably used `terraformsh shell` and forgot to *exit*.
+
 
 ---
 
