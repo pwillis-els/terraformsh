@@ -378,6 +378,9 @@ _tf_set_datadir () {
         TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
     fi
     if [ -z "${TF_DATA_DIR:-}" ] ; then
+        if [ -n "${TF_TMPDIR:-}" ] ; then
+            echo "$0: Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a 'terraform shell' session? You might want to exit your shell before running terraformsh again"
+        fi
         _cleanup_tmp
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
         mkdir -p "$TF_TMPDIR"
