@@ -252,8 +252,14 @@ _cmd_catchall () {
 # into a shell in the working directory of the root module to be used, with
 # everything ready to run 'terraform' commands (such as 'terraform state list')
 _cmd_shell () {
-    [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
+    ret=0
+    if [ "${NO_DEP_CMDS:-0}" = "0" ] && ! _cmd_get ; then
+        ret=$?
+        echo "$0: Previous command failed!"
+    fi
+    echo "$0: Dropping into shell; see TF_DATA_DIR variable for temp files"
     _runcmd bash -i -l
+    return $?
 }
 # This is basically in case the directory structure where this runs was changed
 # after an initial terraform run. Terraform sucks at cleaning up broken symlinks
