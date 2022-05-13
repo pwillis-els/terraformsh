@@ -256,6 +256,19 @@
         $ echo 'database_name = "some database"' > terraform.sh.tfvars
         $ terraformsh plan
 
+ - Want to only target a couple resources? No problem:
+
+        $ terraformsh plan -target=some.module.name -target=some.other.module.name
+
+ - Want to run a plan, remove a state entry, import a resource into the deleted
+   entry, run plan again, and then apply?
+
+        $ terraformsh plan \
+                      state rm some.module.resource \
+                      import some.module.resource resource-name \
+                      plan \
+                      apply
+
 
 ### Having trouble?
 
