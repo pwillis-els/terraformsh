@@ -10,3 +10,4 @@
  - [x] Implement a function to output the plan file name (without running a plan)
        - This can be accomplished with `terraformsh -N plan 2>&1 | grep '^+ terraform plan ' | sed -e 's/.*-out=\(.\+\)\.plan.*/\1.plan/'`
  - [ ] Add a wrapper like 'terraform=0.12.31' so the user can quickly call specific versions of apps without having to run 'clinst -e terraform=0.12.31 terraform ....'. (Another option would be to further extend the 'missing command' bash handler)
+ - [ ] Modify option parsing so that *after* configs are loaded, command-line options override whatever values the configs set
