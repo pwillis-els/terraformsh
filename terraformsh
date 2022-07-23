@@ -18,15 +18,18 @@ _usage () {
   TFVARS or COMMANDs.
 
     -f FILE         A file passed to Terraform's -var-file option.
+                    Defaults to 'terraform.sh.tfvars' and 'terraform.sh.tfvars.json'
+                    if not provided.
                       ( config: VARFILES= )
     -b FILE         A file passed to Terraform's -backend-config option.
+                    Defaults to 'backend.sh.tfvars' if not provided.
                       ( config: BACKENDVARFILES= )
     -C DIR          Change to directory DIR.
                       ( config: CD_DIR= )
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
@@ -183,7 +186,7 @@ _cmd_console () {
     declare -a args=("$@")
     _runcmd "$TERRAFORM" console "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
 }
-# Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
+# Note: this line may need to be modified to pipe 'yes no | ' to the beginning
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
     [ "${_already_ran_cmd_init:-0}" = "1" ] && return 0
@@ -293,6 +296,7 @@ _cmd_aws_bootstrap () {
 
     # Look though the backend var files for the backend bucket and dynamodb_table
     for varfile in "${BACKENDVARFILES[@]}" ; do
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for S3 Bucket and Dynamodb settings from $varfile ..." 1>&2
         TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
         TF_BACKEND_TABLE="${TF_BACKEND_TABLE:-$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*dynamodb_table[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
     done
@@ -457,26 +461,43 @@ _final_vars () {
         INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
     fi
 }
+# This function either load all the default terraformsh config
+# files found, or only the one passed by the user.
 _load_conf () {
-    # Don't load the default configs if one was passed via '-c'
-    if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "terraformsh.conf" ; do
-            [ -e "$f" ] && . "$(_readlinkf "$f")"
+    # Try to load the default config files if no custom config file was passed via '-c'.
+    if [ ${#CONF_FILE[@]} -eq 0 ] ; then
+        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc"; do
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file $f ..." 1>&2
+            if [ -e "$f" ] ; then
+                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config file $f ..." 1>&2
+                . "$(_readlinkf "$f")"
+            fi
         done
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file terraformsh.conf in current and parent folders ..." 1>&2
+        while read -r LINE ; do
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config file $LINE ..." 1>&2
+            . "$(_readlinkf "$LINE")"
+        done < <( _rfindfiles "terraformsh.conf" )
     # If '-c' was passed, let the user pass only the configs they want to load.
-    elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
+    elif [ ${#CONF_FILE[@]} -ge 1 ] ; then
         for conf in "${CONF_FILE[@]}" ; do
             # NOTE: This is not a replacement for 'readlink -f'; if you want
             # that behavior, pass the real file path yourself, don't rely on this.
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading custom terraformsh config file $conf ..." 1>&2
             . "$(_readlinkf "$conf")"
         done
     fi
     return 0
 }
+# This function extracts the list of files matching the expected patterns in the parents
+# folders and append them to the list of files to load.
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for $TF_AUTO_CONFIG_FILE files in current and parent folders ..." 1>&2
         while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE" )
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for $TF_AUTO_CONFIG_FILE.json files in current and parent folders ..." 1>&2
         while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE.json" )
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for $TF_BACKEND_AUTO_CONFIG_FILE files in current and parent folders ..." 1>&2
         while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
     fi
 }
@@ -494,12 +515,16 @@ _process_cmds () {
         if    [ ! "$(expr "$cmd" : ".*\.backend\.tfvars$")" = "0" ] \
               || [ ! "$(expr "$cmd" : ".*\.backend\.sh\.tfvars$")" = "0" ] \
               || [ ! "$(expr "$cmd" : ".*\.backend$")" = "0" ]
-        then  BACKENDVARFILES+=("$(_readlinkf "$cmd")")
+        then
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Appending Backend command $cmd ..." 1>&2
+            BACKENDVARFILES+=("$(_readlinkf "$cmd")")
         elif  [ "$(expr "$cmd" : ".*\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.tfvars\.json$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars\.json$")" -ne 0 ]
-        then  VARFILES+=("$(_readlinkf "$cmd")")
+        then
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Appending TFVAR command $cmd ..." 1>&2
+            VARFILES+=("$(_readlinkf "$cmd")")
         else  break
         fi
         s=$((s+1))
@@ -538,7 +563,7 @@ _process_cmds () {
             prev="opt"
         else
             echo "$0: Info: Found terraform command '$cmd'" 1>&2
-            CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '(' 
+            CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '('
             found_cmds=$((found_cmds+1))
             prev="cmd"
             prevcmd="$cmd"
@@ -553,15 +578,16 @@ _process_cmds () {
 }
 _dirchange () {
     if [ -n "${CD_DIR:-}" ] ; then
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Changing working directory to $CD_DIR ..." 1>&2
         printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
         cd "$CD_DIR"
     fi
 }
 _readlinkf () {
     [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
-    [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
+    [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1;
     while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
-      if [ ! "$t" = "${t%/*}" ]; then case $t in 
+      if [ ! "$t" = "${t%/*}" ]; then case $t in
         /*) cd -P "${t%/*}/"  || break ;;
         *) cd -P "./${t%/*}"  || break ;;
         esac; t=${t##*/}; fi
@@ -569,11 +595,17 @@ _readlinkf () {
       link=$(ls -dl -- "$t" 2>/dev/null) || break; t=${link#*" $t -> "}
     done; return 1
 }
+
+# This function takes a file name as argument and search in the current and parents
+# folders and return the full path of any file matching this name.
 _rfindfiles () {
     local file="$1"
     cwd="$(pwd)"
     while [ ! "$(dirname "$cwd")" = "/" ] ; do
-        [ ! -e "$cwd/$file" ] || printf "%s\n" "$cwd/$file"
+        if [ -e "$cwd/$file" ] ; then
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Found file $cwd/$file ..." 1>&2
+            printf "%s\n" "$cwd/$file"
+        fi
         cwd="$(dirname "$cwd")"
     done
 }
@@ -586,7 +618,7 @@ _runcmd () {
 # ------------------           parse cmdline options           --------------------------- #
 
 SHOW_HELP=0
-declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
+declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=()
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
 declare -a CONSOLE_ARGS=() TAINT_ARGS=() UNTAINT_ARGS=() OUTPUT_ARGS=()
@@ -638,7 +670,7 @@ for pair in "${CMD_PAIRS[@]}" ; do
     name="${array[0]}" # array is defined in 'eval $pair'
     if command -v _cmd_"$name" >/dev/null ; then
         _cmd_"$name" "${array[@]:1}"
-    else 
+    else
         _cmd_catchall "$name" "${array[@]:1}"
     fi
 done
