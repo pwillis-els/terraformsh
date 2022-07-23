@@ -516,14 +516,14 @@ _process_cmds () {
               || [ ! "$(expr "$cmd" : ".*\.backend\.sh\.tfvars$")" = "0" ] \
               || [ ! "$(expr "$cmd" : ".*\.backend$")" = "0" ]
         then
-            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Appending the Backend file $cmd ..." 1>&2
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: We will try to use the Backend file $cmd ..." 1>&2
             BACKENDVARFILES+=("$(_readlinkf "$cmd")")
         elif  [ "$(expr "$cmd" : ".*\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.tfvars\.json$")" -ne 0 ] \
               || [ "$(expr "$cmd" : ".*\.sh\.tfvars\.json$")" -ne 0 ]
         then
-            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Appending the TFVAR file $cmd ..." 1>&2
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: We will try to use the TFVAR file $cmd ..." 1>&2
             VARFILES+=("$(_readlinkf "$cmd")")
         else  break
         fi
