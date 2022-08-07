@@ -473,17 +473,11 @@ _load_conf () {
                 . "$(_readlinkf "$f")"
             fi
         done
-        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file terraformsh.conf in current and parent folders ..." 1>&2
-        count_loaded=0
-        # We only want to load the very first terraformsh config file found in the curent or parent folders
+        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for terraformsh.conf config files in current and parent folders ..." 1>&2
         while read -r LINE ; do
-            if [ $count_loaded -eq 0 ]; then
-                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config bash file $LINE ..." 1>&2
-                . "$(_readlinkf "$LINE")"
-                count_loaded=$(( count_loaded + 1 ))
-            else
-                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Skipping default terraformsh config bash file $LINE because a better file has been found ..." 1>&2
-            fi
+            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading first/best match for terraformsh.conf bash file: $LINE ..." 1>&2
+            . "$(_readlinkf "$LINE")"
+            break # Exit the loop so we do not load any other terraformsh.conf files, because we only want to load the best match
         done < <( _rfindfiles "terraformsh.conf" )
     # If '-c' was passed, let the user pass only the configs they want to load.
     elif [ ${#CONF_FILE[@]} -ge 1 ] ; then
