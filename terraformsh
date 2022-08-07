@@ -474,9 +474,16 @@ _load_conf () {
             fi
         done
         [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file terraformsh.conf in current and parent folders ..." 1>&2
+        count_loaded=0
+        # We only want to load the very first terraformsh config file found in the curent or parent folders
         while read -r LINE ; do
-            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config file $LINE ..." 1>&2
-            . "$(_readlinkf "$LINE")"
+            if [ $count_loaded -eq 0 ]; then
+                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config bash file $LINE ..." 1>&2
+                . "$(_readlinkf "$LINE")"
+                count_loaded=$(( count_loaded + 1 ))
+            else
+                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Skipping default terraformsh config bash file $LINE because a better file has been found ..." 1>&2
+            fi
         done < <( _rfindfiles "terraformsh.conf" )
     # If '-c' was passed, let the user pass only the configs they want to load.
     elif [ ${#CONF_FILE[@]} -ge 1 ] ; then
