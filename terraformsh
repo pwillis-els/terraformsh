@@ -293,8 +293,8 @@ _cmd_aws_bootstrap () {
 
     # Look though the backend var files for the backend bucket and dynamodb_table
     for varfile in "${BACKENDVARFILES[@]}" ; do
-        TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*bucket[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
-        TF_BACKEND_TABLE="${TF_BACKEND_TABLE:-$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" | sed -e 's/^[[:space:]]*dynamodb_table[[:space:]]\+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
+        TF_BACKEND_BUCKET="${TF_BACKEND_BUCKET:-$( grep -e "^[[:space:]]*bucket[[:space:]]\+=" < "$varfile" | sed -E 's/^[[:space:]]*bucket[[:space:]]+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
+        TF_BACKEND_TABLE="${TF_BACKEND_TABLE:-$( grep -e "^[[:space:]]*dynamodb_table[[:space:]]\+=" < "$varfile" | sed -E 's/^[[:space:]]*dynamodb_table[[:space:]]+=[[:space:]]*//; s/^"//g; s/"$//g' )}"
     done
 
     if [ -z "${TF_BACKEND_BUCKET:-}" ] || [ -z "${TF_BACKEND_TABLE:-}" ] ; then
