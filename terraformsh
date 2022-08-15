@@ -403,6 +403,7 @@ _default_vars () {
     # when found in any parent directories (disable with the '-I' option).
     TF_BACKEND_AUTO_CONFIG_FILE="${TF_BACKEND_AUTO_CONFIG_FILE:-backend.sh.tfvars}"
     TF_AUTO_CONFIG_FILE="${TF_AUTO_CONFIG_FILE:-terraform.sh.tfvars}"
+    declare -a TFSH_AUTO_CONFIG_FILES=(.terraformshrc terraformsh.conf)
 
     # This enables the above functionality by default ('-I' sets this to 0)
     INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
@@ -461,26 +462,22 @@ _final_vars () {
         INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
     fi
 }
-# This function either load all the default terraformsh config
-# files found, or only the one passed by the user.
 _load_conf () {
-    # Try to load the default config files if no custom config file was passed via '-c'.
-    if [ ${#CONF_FILE[@]} -eq 0 ] ; then
-        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc"; do
-            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file $f ..." 1>&2
-            if [ -e "$f" ] ; then
-                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config file $f ..." 1>&2
-                . "$(_readlinkf "$f")"
-            fi
+    # Don't load the default configs if one was passed via '-c'
+    if [ ${#CONF_FILE[@]} -lt 1 ] ; then
+        for file in /etc/terraformsh ~/.terraformshrc "${TFSH_AUTO_CONFIG_FILES[@]}" ; do
+            while read -r LINE ; do tfshconffiles=("$LINE") ; done < <(_rfindfiles "$file")
+            declare -a files=("$file" "${tfshconffiles[@]}")
+            for f in "${files[@]}" ; do
+                [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for default terraformsh config file $f ..." 1>&2
+                if [ -e "$f" ] ; then
+                    [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading default terraformsh config file $f ..." 1>&2
+                    . "$(_readlinkf "$f")"
+                fi
+            done
         done
-        [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for terraformsh.conf config files in current and parent folders ..." 1>&2
-        while read -r LINE ; do
-            [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Loading first/best match for terraformsh.conf bash file: $LINE ..." 1>&2
-            . "$(_readlinkf "$LINE")"
-            break # Exit the loop so we do not load any other terraformsh.conf files, because we only want to load the best match
-        done < <( _rfindfiles "terraformsh.conf" )
     # If '-c' was passed, let the user pass only the configs they want to load.
-    elif [ ${#CONF_FILE[@]} -ge 1 ] ; then
+    elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
         for conf in "${CONF_FILE[@]}" ; do
             # NOTE: This is not a replacement for 'readlink -f'; if you want
             # that behavior, pass the real file path yourself, don't rely on this.
@@ -500,6 +497,7 @@ _load_parent_tffiles () {
         while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE.json" )
         [ "${DEBUG:-0}" -gt 0 ] && echo "$0: Debug: Searching for $TF_BACKEND_AUTO_CONFIG_FILE files in current and parent folders ..." 1>&2
         while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
+        #while read -r LINE ; do 
     fi
 }
 # This function takes an array and processes it for arguments from the Terraformsh
