@@ -26,7 +26,7 @@ _usage () {
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
@@ -183,7 +183,7 @@ _cmd_console () {
     declare -a args=("$@")
     _runcmd "$TERRAFORM" console "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
 }
-# Note: this line may need to be modified to pipe 'yes no | ' to the beginning 
+# Note: this line may need to be modified to pipe 'yes no | ' to the beginning
 # of the Terraform command, if you notice any problems with init in the future.
 _cmd_init () {
     [ "${_already_ran_cmd_init:-0}" = "1" ] && return 0
@@ -538,7 +538,7 @@ _process_cmds () {
             prev="opt"
         else
             echo "$0: Info: Found terraform command '$cmd'" 1>&2
-            CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '(' 
+            CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '('
             found_cmds=$((found_cmds+1))
             prev="cmd"
             prevcmd="$cmd"
@@ -559,9 +559,9 @@ _dirchange () {
 }
 _readlinkf () {
     [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
-    [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1; 
+    [ -d "${t:-/}" ] && t="$t/"; cd -P . 2>/dev/null || return 1;
     while [ "$m_s" -ge 0 ] && m_s=$((m_s - 1)); do
-      if [ ! "$t" = "${t%/*}" ]; then case $t in 
+      if [ ! "$t" = "${t%/*}" ]; then case $t in
         /*) cd -P "${t%/*}/"  || break ;;
         *) cd -P "./${t%/*}"  || break ;;
         esac; t=${t##*/}; fi
@@ -586,7 +586,7 @@ _runcmd () {
 # ------------------           parse cmdline options           --------------------------- #
 
 SHOW_HELP=0
-declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=() 
+declare -a BACKENDVARFILE_ARG=() BACKENDVARFILES=() VARFILE_ARG=() VARFILES=()
 declare -a REFRESH_ARGS=() INIT_ARGS=() IMPORT_ARGS=() GET_ARGS=() STATE_ARGS=()
 declare -a PLAN_ARGS=() APPLY_ARGS=() PLANDESTROY_ARGS=() DESTROY_ARGS=()
 declare -a CONSOLE_ARGS=() TAINT_ARGS=() UNTAINT_ARGS=() OUTPUT_ARGS=()
@@ -638,7 +638,7 @@ for pair in "${CMD_PAIRS[@]}" ; do
     name="${array[0]}" # array is defined in 'eval $pair'
     if command -v _cmd_"$name" >/dev/null ; then
         _cmd_"$name" "${array[@]:1}"
-    else 
+    else
         _cmd_catchall "$name" "${array[@]:1}"
     fi
 done
