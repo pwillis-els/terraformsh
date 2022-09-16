@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+program="terraformsh"
+
+[[ -z ${ASDF_INSTALL_TYPE} ]] && echo "ASDF_INSTALL_TYPE is required" && exit 1
+[[ -z ${ASDF_INSTALL_VERSION} ]] && echo "ASDF_INSTALL_VERSION is required" && exit 1
+[[ -z ${ASDF_INSTALL_PATH} ]] && echo "ASDF_INSTALL_PATH is required" && exit 1
+[[ ${ASDF_INSTALL_TYPE} != version ]] && echo "install type '${ASDF_INSTALL_TYPE}' is not supported." && exit 1
+
+tmp_dir=$(mktemp -d -t ${program}_XXXX)
+cleanup() {
+  rm -rf "${tmp_dir}"
+}
+trap cleanup INT TERM EXIT
+
+install() {
+  local version=$1
+  local install_path="$2/bin/"
+  local bin_path="${install_path}/${program}"
+
+  local download_url
+  download_url="https://raw.githubusercontent.com/pwillis-els/${program}/v${version}/${program}"
+
+  mkdir -p "${install_path}"
+
+  cd "${tmp_dir}"
+  echo "Downloading ${program} from ${download_url}"
+  curl -sL "$download_url" -o "${tmp_dir}/${program}-${version}"
+  mv "${tmp_dir}/${program}-${version}" "${bin_path}"
+  chmod +x "${bin_path}"
+}
+
+install "${ASDF_INSTALL_VERSION}" "${ASDF_INSTALL_PATH}"

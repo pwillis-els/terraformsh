@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+releases_path=https://api.github.com/repos/pwillis-els/terraformsh/releases
+cmd="curl -s"
+if [[ -n ${GITHUB_API_TOKEN} ]]; then
+  cmd="$cmd -H 'Authorization: token ${GITHUB_API_TOKEN}'"
+fi
+cmd="${cmd} ${releases_path}"
+
+# stolen from https://github.com/rbenv/ruby-build/pull/631/files#diff-fdcfb8a18714b33b07529b7d02b54f1dR942
+function sort_versions() {
+  sed 'h; s/[+-]/./g; s/.p\([[:digit:]]\)/.z\1/; s/$/.z/; G; s/\n/ /' | \
+    LC_ALL=C sort -t. -k 1,1 -k 2,2n -k 3,3n -k 4,4n -k 5,5n | awk '{print $2}'
+}
+
+# Fetch all tag names
+eval "$cmd" | grep 'tag_name' | cut -d '"' -f 4 | sed -e 's/^v//' | sort_versions | xargs
+
