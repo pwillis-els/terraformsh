@@ -9,24 +9,6 @@ program="terraformsh"
 [[ -z ${ASDF_INSTALL_PATH} ]] && echo "ASDF_INSTALL_PATH is required" && exit 1
 [[ ${ASDF_INSTALL_TYPE} != version ]] && echo "install type '${ASDF_INSTALL_TYPE}' is not supported." && exit 1
 
-if [[ $(uname -m) == "x86_64" ]]
-then
-  arch=amd64
-elif [[ $(uname -m) == "i386" ]]
-then
-  arch=386
-else
-  echo "Sorry $(uname -m) arch is not supported."
-  exit 1
-fi
-
-platform="$(uname)"
-if [[  ! (${platform} == Linux || ${platform} == Darwin) ]]
-then
-  echo "Unsupported platform '${platform}' found. Only Linux and Darwin are supported."
-  exit 1
-fi
-
 tmp_dir=$(mktemp -d -t ${program}_XXXX)
 cleanup() {
   rm -rf "${tmp_dir}"
@@ -35,7 +17,7 @@ trap cleanup INT TERM EXIT
 
 install() {
   local version=$1
-  local install_path="$2//bin/"
+  local install_path="$2/bin/"
   local bin_path="${install_path}/${program}"
 
   local download_url
@@ -45,8 +27,8 @@ install() {
 
   cd "${tmp_dir}"
   echo "Downloading ${program} from ${download_url}"
-  curl -sL "$download_url" -o "${tmp_dir}/${program}-${platform}-${version}"
-  mv "${tmp_dir}/${program}-${platform}-${version}" "${bin_path}"
+  curl -sL "$download_url" -o "${tmp_dir}/${program}-${version}"
+  mv "${tmp_dir}/${program}-${version}" "${bin_path}"
   chmod +x "${bin_path}"
 }
 
