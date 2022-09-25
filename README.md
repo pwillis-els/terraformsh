@@ -221,10 +221,19 @@
         + terraform get -update=true
         + bash -i -l
 
-
   You can even get Terraformsh to explicitly ask you for confirmation before
   moving to the next command with the `approve` command (since the default is
   to pass `-input=false` to each command for easier use in automation).
+
+  Are you working in a hierarchy of config files, and want to grep all
+  the parent directories? Use the built-in `revgrep` command:
+
+        $ terraformsh revgrep -H -e "gcp_project_id"
+        terraformsh: Info: Found terraform command 'revgrep'
+        terraformsh: Warning: '-H' is not a valid command; passing as an option instead
+        terraformsh: Warning: 'project_id' is not a valid command; passing as an option instead
+        + cd "/home/vagrant/my-repo/env/product/dev/nonprod/us-west1/tf-state/bootstrap"
+        /home/vagrant/git/my-repo/env/product/dev/nonprod/terraform.sh.tfvars:gcloud_project_id = "123456789"
 
 
 ### More Examples
@@ -256,19 +265,6 @@
         $ echo 'database_name = "some database"' > terraform.sh.tfvars
         $ terraformsh plan
 
- - Want to only target a couple resources? No problem:
-
-        $ terraformsh plan -target=some.module.name -target=some.other.module.name
-
- - Want to run a plan, remove a state entry, import a resource into the deleted
-   entry, run plan again, and then apply?
-
-        $ terraformsh plan \
-                      state rm some.module.resource \
-                      import some.module.resource resource-name \
-                      plan \
-                      apply
-
 
 ### Having trouble?
 
@@ -297,7 +293,7 @@
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files 
+                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
@@ -347,6 +343,7 @@
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
+    revgrep           Run 'grep' on files in all parent directories
 
 All arguments after a COMMAND are evaluated for whether they match a Terraform
 or Terraformsh command; if they don't, they are assumed to be options and are
