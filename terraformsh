@@ -76,6 +76,7 @@ _usage () {
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
+    revgrep           Run 'grep' on files in all parent directories
 
 All arguments after a COMMAND are evaluated for whether they match a Terraform
 or Terraformsh command; if they don't, they are assumed to be options and are
@@ -90,18 +91,20 @@ declare -a TF_CMDS_env=(delete list new select)
 declare -a TF_CMDS_providers=(lock mirror schema)
 declare -a TF_CMDS_state=(list mv pull push replace-provider rm show)
 declare -a TF_CMDS_workspace=(delete list new select show)
-declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_bootstrap)
+declare -a WRAPPER_COMMANDS=(plan_destroy shell clean clean_modules approve aws_bootstrap revgrep)
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           functions                       --------------------------- #
 
 _cmd_plan () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("-out=$TF_PLANFILE")
     _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" "${PLAN_ARGS[@]}" "${args[@]}"
 }
 _cmd_apply () {
+    _final_vars
     local errored=0
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
@@ -113,7 +116,7 @@ _cmd_apply () {
             if _cmd_state push errored.tfstate ; then
                 rm -f errored.tfstate
             else
-                echo "$0: Error: could not push errored.tfstate!" ; exit 1
+                _errexit "Error: could not push errored.tfstate!"
             fi
         fi
     else
@@ -121,12 +124,14 @@ _cmd_apply () {
     fi
 }
 _cmd_plan_destroy () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_validate
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("-out=$TF_DESTROY_PLANFILE")
     _runcmd "$TERRAFORM" plan "${VARFILE_ARG[@]}" -destroy "${PLANDESTROY_ARGS[@]}" "${args[@]}"
 }
 _cmd_destroy () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
@@ -139,6 +144,7 @@ _cmd_destroy () {
 # Validate doesn't require 'init' to check the .tf files syntax, but it does
 # require init once it gets to the providers
 _cmd_validate () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_get
     declare -a args=("$@")
     declare -a tfver_a=($(_tf_ver))
@@ -149,36 +155,43 @@ _cmd_validate () {
     _runcmd "$TERRAFORM" validate "${VALIDATE_ARGS[@]}" "${args[@]}"
 }
 _cmd_get () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init # 'terraform get' does nothing if we have not initialized terraform
     declare -a args=("$@")
     _runcmd "$TERRAFORM" get "${GET_ARGS[@]}" "${args[@]}"
 }
 _cmd_refresh () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" refresh "${VARFILE_ARG[@]}" "${REFRESH_ARGS[@]}" "${args[@]}"
 }
 _cmd_output () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_refresh 1>&2 # Send all previous command output to STDERR
     declare -a args=("$@")
     _runcmd "$TERRAFORM" output "${OUTPUT_ARGS[@]}" "${args[@]}"
 }
 _cmd_force-unlock () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" force-unlock "${FORCEUNLOCK_ARGS[@]}" "${args[@]}"
 }
 _cmd_0.12upgrade () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" 0.12upgrade "${OH12UPGRADE_ARGS[@]}" "${args[@]}"
 }
 _cmd_0.13upgrade () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" 0.13upgrade "${OH13UPGRADE_ARGS[@]}" "${args[@]}"
 }
 _cmd_console () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" console "${VARFILE_ARG[@]}" "${CONSOLE_ARGS[@]}" "${args[@]}"
@@ -188,25 +201,30 @@ _cmd_console () {
 _cmd_init () {
     [ "${_already_ran_cmd_init:-0}" = "1" ] && return 0
     _already_ran_cmd_init=1
+    _final_vars
     declare -a args=("$@")
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${args[@]}"
 }
 _cmd_import () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" import "${VARFILE_ARG[@]}" "${IMPORT_ARGS[@]}" "${args[@]}"
 }
 _cmd_taint () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" taint "${TAINT_ARGS[@]}" "${args[@]}"
 }
 _cmd_untaint () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     _runcmd "$TERRAFORM" untaint "${UNTAINT_ARGS[@]}" "${args[@]}"
 }
 _cmd_state () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2 # Send all previous command output to STDERR
     declare -a args=()
     local cmd
@@ -228,6 +246,7 @@ _cmd_state () {
     _runcmd "$TERRAFORM" state "${args[@]}"
 }
 _cmd_workspace () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2
     declare -a args=()
     local cmd
@@ -241,17 +260,20 @@ _cmd_workspace () {
     _runcmd "$TERRAFORM" workspace "${args[@]}"
 }
 _cmd_show () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init 1>&2 # Send all previous command output to STDERR
     declare -a args=("$@")
     _runcmd "$TERRAFORM" show "${SHOW_ARGS[@]}" "${args[@]}"
 }
 _cmd_catchall () {
+    _final_vars
     _runcmd "$TERRAFORM" "$@"
 }
 # The following allows you to do something like 'terraformsh plan shell' to drop
 # into a shell in the working directory of the root module to be used, with
 # everything ready to run 'terraform' commands (such as 'terraform state list')
 _cmd_shell () {
+    _final_vars
     ret=0
     if [ "${NO_DEP_CMDS:-0}" = "0" ] && ! _cmd_get ; then
         ret=$?
@@ -279,8 +301,19 @@ _cmd_approve () {
     if [ "$approve" = "YES" ] ; then
         echo "$0: Approval given; continuing!" ; echo ""
     else
-        echo "$0: Approval not given; exiting!" ; exit 1
+        _errexit "Approval not given; exiting!"
     fi
+}
+_cmd_revgrep () {
+    [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
+    echo "+ cd $TERRAFORM_PWD"
+    cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
+    while read -r LINE ; do
+        if [ -e "$LINE" ] ; then
+            #echo "+ grep" "$@" " " "$LINE" 1>&2
+            grep "$@" "$LINE" || true
+        fi
+    done < <( _rfindfiles "*" "..?*" )
 }
 # This function is used to bootstrap a new AWS remote state file.
 # You would typically run this in a brand new region, or for a brand new
@@ -298,8 +331,7 @@ _cmd_aws_bootstrap () {
     done
 
     if [ -z "${TF_BACKEND_BUCKET:-}" ] || [ -z "${TF_BACKEND_TABLE:-}" ] ; then
-        echo "$0: Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
-        exit 1
+        _errexit "Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
     fi
 
     # Create a local terraform backend
@@ -369,6 +401,7 @@ _tf_ver () {
     printf "%s\n" "${tfver_a[@]}"
 }
 _tf_set_datadir () {
+    TERRAFORM_MODULE_PWD="${TERRAFORM_MODULE_PWD:-$(pwd)}"
     # Generate a temporary, but predictable, TF_DATA_DIR, if not set yet
     if [ -z "${TF_DD_UNIQUE_NAME:-}" ] ; then
         # Generate a truncated MD5 hash based on the name of both the directory where
@@ -441,7 +474,7 @@ _pre_dirchange_vars () {
     fi
 }
 _final_vars () {
-    TERRAFORM_MODULE_PWD="$(pwd)"
+    _dirchange
     _tf_set_datadir
 
     # Override these to change the name of the plan files
@@ -528,7 +561,7 @@ _process_cmds () {
         done
         if [ $valid_cmd -eq 0 ] || [ $valid_cmd -eq 2 ] ; then
             if [ $found_cmds -lt 1 ] ; then
-                echo "$0: Error: Found non-command '$cmd' before a command was found" ; exit 1
+                _errexit "Error: Found non-command '$cmd' before a command was found"
             fi
             [ $valid_cmd -eq 0 ] && \
                 echo "$0: Warning: '$cmd' is not a valid command; passing as an option instead" 1>&2
@@ -552,7 +585,9 @@ _process_cmds () {
     fi
 }
 _dirchange () {
-    if [ -n "${CD_DIR:-}" ] ; then
+    if [ -n "${CD_DIR:-}" ] && [ ! "$(pwd)" = "${CD_DIR:-}" ] ; then
+        cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
+                            # in case CD_DIR is a relative path!
         printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
         cd "$CD_DIR"
     fi
@@ -570,16 +605,25 @@ _readlinkf () {
     done; return 1
 }
 _rfindfiles () {
-    local file="$1"
     cwd="$(pwd)"
     while [ ! "$(dirname "$cwd")" = "/" ] ; do
-        [ ! -e "$cwd/$file" ] || printf "%s\n" "$cwd/$file"
+        for f in "$@" ; do
+            for p in $cwd/$f ; do
+                if [ ! -d "$p" ] ; then
+                    #echo "file '$f' p '$p'" 1>&2
+                    printf "%s\n" "$p"
+                fi
+            done
+        done
         cwd="$(dirname "$cwd")"
     done
 }
 _runcmd () {
     echo "+ $*" 1>&2
     if [ ! "${DRYRUN:-0}" = "1" ] ; then "$@"; fi
+}
+_errexit () {
+    echo "$0: $*" ; exit 1
 }
 
 # ---------------------------------------------------------------------------------------- #
@@ -610,7 +654,7 @@ while getopts "f:b:C:c:E:IPDNnhv" args ; do
         h)  SHOW_HELP=1 ;;
         v)  export DEBUG=1 ;;
         *)
-            echo "$0: Error: unknown option $args" ; exit 1 ;;
+            _errexit "Error: unknown option $args" ;;
     esac
 done
 shift $(($OPTIND-1))
@@ -629,8 +673,6 @@ _load_conf
 
 _process_cmds "${CMDS[@]}"
 _pre_dirchange_vars
-_dirchange
-_final_vars
 
 declare -a array
 for pair in "${CMD_PAIRS[@]}" ; do
