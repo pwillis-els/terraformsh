@@ -17,6 +17,9 @@ permissions:
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     steps:
       - uses: release-drafter/release-drafter@v5
         env:
