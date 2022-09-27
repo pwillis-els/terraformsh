@@ -1,5 +1,5 @@
 autolabeler:
-  - label: 'chore'
+  - label: 'maintenance'
     files:
       - '*.md'
     branch:
@@ -15,11 +15,14 @@ autolabeler:
   - label: 'enhancement'
     branch:
       - '/feature\/.+/'
+    title:
+      - '/added/i'
+      - '/add /i'
 
-name-template: 'v$RESOLVED_VERSION 🌈'
+name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: '🚀 Features'
+  - title: '🚀 Added Features'
     labels:
       - 'feature'
       - 'enhancement'
@@ -29,7 +32,7 @@ categories:
       - 'bugfix'
       - 'bug'
   - title: '🧰 Maintenance'
-    label: 'chore'
+    label: 'maintenance'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 
