@@ -77,6 +77,7 @@ _usage () {
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
     revgrep           Run 'grep' on files in all parent directories
+    env               Run 'env' command with optional arguments
 
 All arguments after a COMMAND are evaluated for whether they match a Terraform
 or Terraformsh command; if they don't, they are assumed to be options and are
@@ -315,6 +316,10 @@ _cmd_revgrep () {
         fi
     done < <( _rfindfiles "*" "..?*" )
 }
+_cmd_env () {
+    _final_vars
+    env "$@"
+}
 # This function is used to bootstrap a new AWS remote state file.
 # You would typically run this in a brand new region, or for a brand new
 # root module, to create the initial state file. It will attempt to re-use
@@ -481,6 +486,7 @@ _final_vars () {
     TF_PLANFILE="${TF_PLANFILE:-${TERRAFORM_PWD}/tf.$TF_DD_UNIQUE_NAME.plan}"
     TF_DESTROY_PLANFILE="${TF_DESTROY_PLANFILE:-${TERRAFORM_PWD}/tf-destroy.$TF_DD_UNIQUE_NAME.plan}"
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
+    export TF_PLANFILE TF_DESTROY_PLANFILE TF_BOOTSTRAP_PLANFILE
 
     if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
         echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
