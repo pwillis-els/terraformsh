@@ -235,6 +235,10 @@
         + cd "/home/vagrant/my-repo/env/product/dev/nonprod/us-west1/tf-state/bootstrap"
         /home/vagrant/git/my-repo/env/product/dev/nonprod/terraform.sh.tfvars:gcloud_project_id = "123456789"
 
+  Want to output one of Terraformsh's plan files as JSON?
+
+        $ terraformsh show -json "$(pwd)/tf.b063520160.plan"
+
 
 ### More Examples
 
