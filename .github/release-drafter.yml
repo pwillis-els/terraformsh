@@ -46,7 +46,10 @@ version-resolver:
      - 'patch'
   default: minor
 
+commitish: "main"
+target_commitish: "main"
+
 template: |
-  ## What’s Changed
+  ## [v$RESOLVED_VERSION]
 
   $CHANGES
