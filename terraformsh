@@ -292,6 +292,7 @@ _cmd_clean_modules () {
     _runcmd rm -v -rf .terraform/modules/*
 }
 _cmd_clean () {
+    _final_vars
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_clean_modules
     _runcmd rm -vrf "$TF_PLANFILE" "$TF_DESTROY_PLANFILE" .terraform/terraform.tfstate terraform.tfstate || true
 }
@@ -326,6 +327,7 @@ _cmd_env () {
 # an existing S3 bucket and DynamoDB table, or create them if they don't
 # yet exist.
 _cmd_aws_bootstrap () {
+    _final_vars
     local bucket_region
     _cmd_clean_modules
 
