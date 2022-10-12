@@ -308,7 +308,7 @@ _cmd_approve () {
 }
 _cmd_revgrep () {
     [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
-    echo "+ cd $TERRAFORM_PWD"
+    echo "+ cd $TERRAFORM_PWD" 1>&2
     cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
     while read -r LINE ; do
         if [ -e "$LINE" ] ; then
