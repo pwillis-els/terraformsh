@@ -480,6 +480,7 @@ _pre_dirchange_vars () {
         done
     fi
 }
+_final_vars_set=0
 _final_vars () {
     _dirchange
     _tf_set_datadir
@@ -490,13 +491,16 @@ _final_vars () {
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
     export TF_PLANFILE TF_DESTROY_PLANFILE TF_BOOTSTRAP_PLANFILE
 
-    if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-        echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
-        echo "" 1>&2
-        sleep 1
-    else
-        INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
+    if [ "${_final_vars_set}" = "0" ] ; then
+        if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
+            echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
+            echo "" 1>&2
+            sleep 1
+        else
+            INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
+        fi
     fi
+    _final_vars_set=1
 }
 _load_conf () {
     # Don't load the default configs if one was passed via '-c'
@@ -592,12 +596,16 @@ _process_cmds () {
         echo "$0: Error: No COMMAND was specified"; echo ""; _usage
     fi
 }
+_dirchange_old=""
 _dirchange () {
     if [ -n "${CD_DIR:-}" ] && [ ! "$(pwd)" = "${CD_DIR:-}" ] ; then
         cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
                             # in case CD_DIR is a relative path!
-        printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
-        cd "$CD_DIR"
+        if [ ! "${_dirchange_old}" = "$CD_DIR" ] ; then
+            printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
+            cd "$CD_DIR"
+        fi
+        _dirchange_old="$CD_DIR"
     fi
 }
 _readlinkf () {
