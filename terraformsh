@@ -308,14 +308,16 @@ _cmd_approve () {
 }
 _cmd_revgrep () {
     [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
-    echo "+ cd $TERRAFORM_PWD" 1>&2
-    cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
-    while read -r LINE ; do
-        if [ -e "$LINE" ] ; then
-            #echo "+ grep" "$@" " " "$LINE" 1>&2
-            grep "$@" "$LINE" || true
-        fi
-    done < <( _rfindfiles "*" "..?*" )
+    (
+        echo "+ cd $TERRAFORM_PWD" 1>&2
+        cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
+        while read -r LINE ; do
+            if [ -e "$LINE" ] ; then
+                #echo "+ grep" "$@" " " "$LINE" 1>&2
+                grep "$@" "$LINE" || true
+            fi
+        done < <( _rfindfiles "*" "..?*" )
+    )
 }
 _cmd_env () {
     _final_vars
@@ -599,9 +601,9 @@ _process_cmds () {
 _dirchange_old=""
 _dirchange () {
     if [ -n "${CD_DIR:-}" ] && [ ! "$(pwd)" = "${CD_DIR:-}" ] ; then
-        cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
-                            # in case CD_DIR is a relative path!
         if [ ! "${_dirchange_old}" = "$CD_DIR" ] ; then
+            cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
+                                # in case CD_DIR is a relative path!
             printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
             cd "$CD_DIR"
         fi
