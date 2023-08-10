@@ -111,7 +111,9 @@ _cmd_apply () {
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
-    if ! _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}" ; then
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}"
+    if [ $? -ne 0 ] ; then errored=$? ; fi
+    if [ $errored -ne 0 ] ; then
         if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
             echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
             if _cmd_state push errored.tfstate ; then
@@ -120,6 +122,7 @@ _cmd_apply () {
                 _errexit "Error: could not push errored.tfstate!"
             fi
         fi
+        return $errored
     else
         rm -f "$TF_PLANFILE"
     fi
