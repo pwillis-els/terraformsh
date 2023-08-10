@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.12"
+VERSION="0.13"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
