@@ -622,19 +622,20 @@ _rand () { # Linear congruent generator: cc65
 # MacOS mktemp sucks and doesn't support -p (nor respects TMPDIR)
 _mktemp () {
     local _tmpdir="${TMPDIR:-/tmp}" _makedir=0 _dirprefix=""
-    local _cmd="touch" _template="tmp.XXXXXXXXXX" _new
+    local _cmd="touch" _template="tmp.XXXXXXXXXX" _new _templatetmp
     while getopts "dp:t:" args ; do
         case $args in
             p)  _dirprefix="$OPTARG" ;;
             d)  _makedir=1 ;;
             t)  _makedir=0 ;;
+            *)  _errexit "Please pass correct _mktemp options" ;;
         esac
     done
     shift $(($OPTIND-1))
     [ $# -lt 1 ] || _template="$1"
     [ ! "$_makedir" = "1" ] || _cmd="mkdir"
     while : ; do
-        local _templatetmp="${_template%%XXXXXXXXXX*}$(_rand)${_template##*XXXXXXXXXX}"
+        _templatetmp="${_template%%XXXXXXXXXX*}$(_rand)${_template##*XXXXXXXXXX}"
         _new="$( printf "%s/%s" "${_dirprefix:-$_tmpdir}" "$_templatetmp" )"
         [ -e "$_new" ] && continue
         "$_cmd" "$_new" 2>&- && break
