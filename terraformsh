@@ -242,7 +242,7 @@ _cmd_state () {
     # add '-backup=' to 'terraform state rm ...' command
     if [ "${cmd:-}" = "rm" ] ; then
         # shellcheck disable=SC2155
-        local backupstate="$(mktemp -p "$TERRAFORM_PWD" "backup.XXXXXXXXXX.tfstate")"
+        local backupstate="$(_mktemp -p "$TERRAFORM_PWD" "backup.XXXXXXXXXX.tfstate")"
         args+=("-backup=$backupstate")
         [ "${DRYRUN:-0}" = "1" ] && rm -f "$backupstate"
     fi
@@ -613,6 +613,33 @@ _dirchange () {
         fi
         _dirchange_old="$CD_DIR"
     fi
+}
+_random="$(( $(date +%s) + $$ ))" # random seed
+_rand () { # Linear congruent generator: cc65
+    _random="$(( (16843009*_random + 3014898611) % 4294967296 ))"
+    printf "%x" "$_random"
+}
+# MacOS mktemp sucks and doesn't support -p (nor respects TMPDIR)
+_mktemp () {
+    local _tmpdir="${TMPDIR:-/tmp}" _makedir=0 _dirprefix=""
+    local _cmd="touch" _template="tmp.XXXXXXXXXX" _new
+    while getopts "dp:t:" args ; do
+        case $args in
+            p)  _dirprefix="$OPTARG" ;;
+            d)  _makedir=1 ;;
+            t)  _makedir=0 ;;
+        esac
+    done
+    shift $(($OPTIND-1))
+    [ $# -lt 1 ] || _template="$1"
+    [ ! "$_makedir" = "1" ] || _cmd="mkdir"
+    while : ; do
+        local _templatetmp="${_template%%XXXXXXXXXX*}$(_rand)${_template##*XXXXXXXXXX}"
+        _new="$( printf "%s/%s" "${_dirprefix:-$_tmpdir}" "$_templatetmp" )"
+        [ -e "$_new" ] && continue
+        "$_cmd" "$_new" 2>&- && break
+    done
+    printf %s "$_new"
 }
 _readlinkf () {
     [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
