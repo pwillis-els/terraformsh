@@ -15,7 +15,8 @@
     effect other commands.
   - Bug where status was returned 0 even if 'terraform apply' had errors.
     Instead return terraform's real return code.
-
+  - Bug where 'terraformsh state rm' does not create a backup file correctly
+    on MacOS.
 
 ---
 
