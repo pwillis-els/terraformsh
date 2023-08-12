@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.13"
+VERSION="0.14"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -106,13 +106,14 @@ _cmd_plan () {
 }
 _cmd_apply () {
     _final_vars
-    local errored=0
+    local errored=0 ret
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
     _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}"
-    if [ $? -ne 0 ] ; then errored=$? ; fi
+    ret=$?
+    [ $ret -eq 0 ] || errored=$ret
     if [ $errored -ne 0 ] ; then
         if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
             echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
