@@ -269,6 +269,10 @@
         $ echo 'database_name = "some database"' > terraform.sh.tfvars
         $ terraformsh plan
 
+ - You've applied some Terraform using local state, and now you want to migrate it to a remote backend. After you add your new backend tf code, you'd run:
+
+        $ terraformsh -E "INIT_ARGS=()" init -force-copy -migrate-state plan apply
+
 
 ### Having trouble?
 
@@ -280,7 +284,7 @@
 ---
 
 
-    terraformsh v0.12
+    terraformsh v0.14
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -348,6 +352,7 @@
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
                       If found, creates the bucket and table and initializes your Terraform state with them.
     revgrep           Run 'grep' on files in all parent directories
+    env               Run 'env' command with optional arguments
 
 All arguments after a COMMAND are evaluated for whether they match a Terraform
 or Terraformsh command; if they don't, they are assumed to be options and are

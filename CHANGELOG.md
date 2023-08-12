@@ -1,5 +1,40 @@
 # Changelog
 
+## [v0.14] - 2023-08-12
+
+### Added
+  - Example of migrating state.
+
+### Fixed
+  - Bug where "+ cd ..." is printed multiple times. Instead check what the last
+    "cd" was set to, and if this one is the same, don't "cd" again.
+  - Bug where backend config was getting appended to the init command every time
+    the _final_vars function was called.
+  - Need to have both 'cd' operations follow each other.
+  - Make revgrep run in a subshell so 'cd' in that command doesn't negatively
+    effect other commands.
+  - Bug where status was returned 0 even if 'terraform apply' had errors.
+    Instead return terraform's real return code.
+  - Bug where 'terraformsh state rm' does not create a backup file correctly
+    on MacOS.
+
+---
+
+## [v0.13] - 2022-09-27
+
+### Added
+  - Add revgrep command @pwillis-els (#21)
+  - Add asdf plugin support @pwillis-els (#20)
+  - Add release drafter and lint script @Th0masL (#18)
+  - Try an updated release drafter @pwillis-els (#23)
+
+### Fixed
+  - Fix missing '$' in release drafter config @pwillis-els (#24)
+  - Fix rfindfiles, add env command, add troubleshooting example @pwillis-els (#22)
+  - Fix sed on MacOS @Th0masL (#15)
+
+---
+
 ## [v0.12] - 2022-01-31
 
 ### Added

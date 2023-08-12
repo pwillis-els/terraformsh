@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.12"
+VERSION="0.14"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
@@ -106,12 +106,15 @@ _cmd_plan () {
 }
 _cmd_apply () {
     _final_vars
-    local errored=0
+    local errored=0 ret
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
-    if ! _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}" ; then
+    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}"
+    ret=$?
+    [ $ret -eq 0 ] || errored=$ret
+    if [ $errored -ne 0 ] ; then
         if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
             echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
             if _cmd_state push errored.tfstate ; then
@@ -120,6 +123,7 @@ _cmd_apply () {
                 _errexit "Error: could not push errored.tfstate!"
             fi
         fi
+        return $errored
     else
         rm -f "$TF_PLANFILE"
     fi
@@ -238,7 +242,7 @@ _cmd_state () {
     # add '-backup=' to 'terraform state rm ...' command
     if [ "${cmd:-}" = "rm" ] ; then
         # shellcheck disable=SC2155
-        local backupstate="$(mktemp -p "$TERRAFORM_PWD" "backup.XXXXXXXXXX.tfstate")"
+        local backupstate="$(_mktemp -p "$TERRAFORM_PWD" "backup.XXXXXXXXXX.tfstate")"
         args+=("-backup=$backupstate")
         [ "${DRYRUN:-0}" = "1" ] && rm -f "$backupstate"
     fi
@@ -308,14 +312,16 @@ _cmd_approve () {
 }
 _cmd_revgrep () {
     [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
-    echo "+ cd $TERRAFORM_PWD" 1>&2
-    cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
-    while read -r LINE ; do
-        if [ -e "$LINE" ] ; then
-            #echo "+ grep" "$@" " " "$LINE" 1>&2
-            grep "$@" "$LINE" || true
-        fi
-    done < <( _rfindfiles "*" "..?*" )
+    (
+        echo "+ cd $TERRAFORM_PWD" 1>&2
+        cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
+        while read -r LINE ; do
+            if [ -e "$LINE" ] ; then
+                #echo "+ grep" "$@" " " "$LINE" 1>&2
+                grep "$@" "$LINE" || true
+            fi
+        done < <( _rfindfiles "*" "..?*" )
+    )
 }
 _cmd_env () {
     _final_vars
@@ -480,6 +486,7 @@ _pre_dirchange_vars () {
         done
     fi
 }
+_final_vars_set=0
 _final_vars () {
     _dirchange
     _tf_set_datadir
@@ -490,13 +497,16 @@ _final_vars () {
     TF_BOOTSTRAP_PLANFILE="${TF_BOOTSTRAP_PLANFILE:-${TERRAFORM_PWD}/tf-bootstrap.$TF_DD_UNIQUE_NAME.plan}"
     export TF_PLANFILE TF_DESTROY_PLANFILE TF_BOOTSTRAP_PLANFILE
 
-    if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-        echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
-        echo "" 1>&2
-        sleep 1
-    else
-        INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
+    if [ "${_final_vars_set}" = "0" ] ; then
+        if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
+            echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
+            echo "" 1>&2
+            sleep 1
+        else
+            INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
+        fi
     fi
+    _final_vars_set=1
 }
 _load_conf () {
     # Don't load the default configs if one was passed via '-c'
@@ -592,13 +602,45 @@ _process_cmds () {
         echo "$0: Error: No COMMAND was specified"; echo ""; _usage
     fi
 }
+_dirchange_old=""
 _dirchange () {
     if [ -n "${CD_DIR:-}" ] && [ ! "$(pwd)" = "${CD_DIR:-}" ] ; then
-        cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
-                            # in case CD_DIR is a relative path!
-        printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
-        cd "$CD_DIR"
+        if [ ! "${_dirchange_old}" = "$CD_DIR" ] ; then
+            cd "$TERRAFORM_PWD" # start back at the first directory terraformsh was run from,
+                                # in case CD_DIR is a relative path!
+            printf "+ cd \"%s\"\n" "$CD_DIR" 1>&2
+            cd "$CD_DIR"
+        fi
+        _dirchange_old="$CD_DIR"
     fi
+}
+_random="$(( $(date +%s) + $$ ))" # random seed
+_rand () { # Linear congruent generator: cc65
+    _random="$(( (16843009*_random + 3014898611) % 4294967296 ))"
+    printf "%x" "$_random"
+}
+# MacOS mktemp sucks and doesn't support -p (nor respects TMPDIR)
+_mktemp () {
+    local _tmpdir="${TMPDIR:-/tmp}" _makedir=0 _dirprefix=""
+    local _cmd="touch" _template="tmp.XXXXXXXXXX" _new _templatetmp
+    while getopts "dp:t:" args ; do
+        case $args in
+            p)  _dirprefix="$OPTARG" ;;
+            d)  _makedir=1 ;;
+            t)  _makedir=0 ;;
+            *)  _errexit "Please pass correct _mktemp options" ;;
+        esac
+    done
+    shift $(($OPTIND-1))
+    [ $# -lt 1 ] || _template="$1"
+    [ ! "$_makedir" = "1" ] || _cmd="mkdir"
+    while : ; do
+        _templatetmp="${_template%%XXXXXXXXXX*}$(_rand)${_template##*XXXXXXXXXX}"
+        _new="$( printf "%s/%s" "${_dirprefix:-$_tmpdir}" "$_templatetmp" )"
+        [ -e "$_new" ] && continue
+        "$_cmd" "$_new" 2>&- && break
+    done
+    printf %s "$_new"
 }
 _readlinkf () {
     [ "${1:-}" ] || return 1; m_s=40; CDPATH=''; t=$1; [ -e "${t%/}" ] || t=${1%"${1##*[!/]}"}
