@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.14]
+## [v0.14] - 2023-08-12
 
 ### Added
   - Example of migrating state.
