@@ -109,9 +109,14 @@ _cmd_apply () {
     local errored=0 ret
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
-    [ $USE_PLANFILE -eq 1 ] && args+=("$TF_PLANFILE") # Pass plan file after '$@'
+    local varfile_arg=("")
+    if [ $USE_PLANFILE -eq 1 ]; then
+      args+=("$TF_PLANFILE") # Pass plan file after '$@'
+    else
+      varfile_arg=("${VARFILE_ARG[@]}") # only if planfile disabled
+    fi
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
-    _runcmd "$TERRAFORM" apply "${APPLY_ARGS[@]}" "${args[@]}"
+    _runcmd "$TERRAFORM" apply "${varfile_arg[@]}" "${APPLY_ARGS[@]}" "${args[@]}"
     ret=$?
     [ $ret -eq 0 ] || errored=$ret
     if [ $errored -ne 0 ] ; then
@@ -140,7 +145,7 @@ _cmd_destroy () {
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     if [ "${USE_PLANFILE:-0}" = "0" ] ; then
-        _runcmd "$TERRAFORM" destroy "${args[@]}" "${DESTROY_ARGS[@]}"
+        _runcmd "$TERRAFORM" destroy "${VARFILE_ARG[@]}" "${args[@]}" "${DESTROY_ARGS[@]}"
     else
         args+=("$TF_DESTROY_PLANFILE") # Pass plan file after '$@'
         _runcmd "$TERRAFORM" apply "${DESTROY_ARGS[@]}" "${args[@]}" && rm -f "$TF_DESTROY_PLANFILE"
