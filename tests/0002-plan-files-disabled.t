@@ -6,8 +6,11 @@ set -u
 # Test that plan files don't show up
 _t_plan_files_disabled () {
     pwd
+
+    rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     cd "$tmp"/null-resource-hello-world.tfd
+
     if      $testsh_pwd/terraformsh -P plan
     then
 
@@ -30,9 +33,14 @@ _t_plan_files_disabled () {
 # Test that plan files don't show up when CD_DIR= is used
 _t_plan_files_disabled_cd_dir () {
     pwd
+
+    rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+
+    rm -rf "$tmp"/rundir
     mkdir -p "$tmp/rundir"
     cd "$tmp"/rundir
+
     if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tfd" -P plan
     then
 
@@ -59,6 +67,8 @@ _t_plan_files_disabled_cd_dir () {
 # namely that it should run a destroy and not an apply.
 _t_plan_files_disabled_destroy () {
     pwd
+
+    rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     cd "$tmp"/null-resource-hello-world.tfd
 
@@ -97,9 +107,9 @@ _t_plan_files_disabled_destroy () {
 _t_plan_files_disabled_apply_tfvars () {
     pwd
 
+    rm -rf "$tmp"/local-file-hello-world.tfd
     cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
-
-    cd "$tmp"/null-resource-hello-world.tfd
+    cd "$tmp"/local-file-hello-world.tfd
 
     cat >terraform.sh.tfvars <<EOTFFILE1
 insert-value = "(this is from the tfvars file)"
