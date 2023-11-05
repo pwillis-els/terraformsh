@@ -89,7 +89,11 @@ _t_plan_files_disabled_destroy () {
     fi
 }
 
-# Test that plan files don't show up, but tfvars are used
+# This tests that plan files don't show up,
+# *and* that when using apply, tfvars are passed if you disable
+# plan files. Requires use of -auto-approve to pass in CI.
+# (if you aren't running in CI, use '-E APPLY_ARGS=()' to remove
+#  the -input=false option)
 _t_plan_files_disabled_apply_tfvars () {
     pwd
 
@@ -101,7 +105,7 @@ _t_plan_files_disabled_apply_tfvars () {
 insert-value = "(this is from the tfvars file)"
 EOTFFILE1
 
-    if      $testsh_pwd/terraformsh -P apply
+    if      $testsh_pwd/terraformsh -P apply -auto-approve
     then
 
         TERRAFORM_PWD="$(pwd)"
