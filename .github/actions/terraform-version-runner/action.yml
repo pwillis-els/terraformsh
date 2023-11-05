@@ -1,0 +1,12 @@
+name: "terraform-version-runner"
+description: "Build a container with a specific version of Terraform and run commands in it"
+
+inputs:
+  terraform-version:
+    description: 'The version of Terraform to bundle'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - "docker build -t local-terraform:${{input.terraform-version}} --build-arg TFVER=${{input.terraform-version}} ."
