@@ -52,6 +52,9 @@ jobs:
           build-args: "TFVER=${{ matrix.version }}"
 
       - name: Run test suite
-        run: |
-            terraform --version
-            make
+        uses: addnab/docker-run-action@v3
+        with:
+          image: "local-terraform:${{ matrix.version }}"
+          run: |
+              terraform --version
+              make
