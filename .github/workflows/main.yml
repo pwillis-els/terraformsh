@@ -76,7 +76,7 @@ jobs:
           cache-from: "type=gha"
           cache-to: "type=gha,mode=max"
           push: false
-          build-args: [ "TFVER=$${matrix.version}}" ]
+          build-args: "TFVER=$${matrix.version}}"
 
       - name: Run test suite
         run: |
