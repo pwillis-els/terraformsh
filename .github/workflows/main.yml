@@ -44,8 +44,8 @@ jobs:
     #      --health-timeout 5s
     #      --health-retries 5
 
-    container:
-      image: "${{ matrix.container }}"
+    #container:
+    #  image: "${{ matrix.container }}"
 
     steps:
 
@@ -61,7 +61,7 @@ jobs:
       #- name: Build container
       #  uses: ./.github/actions/terraform-version-runner
       #  with:
-      #    terraform-version: "${{matrix.version}}"
+      #    terraform-version: "${{ matrix.version }}"
       #  env:
       #    DEBUG: 1
       #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,12 +71,12 @@ jobs:
         with:
           context: .
           file: ".github/actions/terraform-version-runner/Dockerfile"
-          tags: "local-terraform:$${matrix.version}}"
+          tags: "local-terraform:${{ matrix.version }}"
           load: true
           cache-from: "type=gha"
           cache-to: "type=gha,mode=max"
           push: false
-          build-args: "TFVER=$${matrix.version}}"
+          build-args: "TFVER=${{ matrix.version }}"
 
       - name: Run test suite
         run: |
