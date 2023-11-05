@@ -89,4 +89,45 @@ _t_plan_files_disabled_destroy () {
     fi
 }
 
-ext_tests="plan_files_disabled plan_files_disabled_cd_dir plan_files_disabled_destroy"
+# Test that plan files don't show up, but tfvars are used
+_t_plan_files_disabled_apply_tfvars () {
+    pwd
+
+    cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
+
+    cd "$tmp"/null-resource-hello-world.tfd
+
+    cat >terraform.sh.tfvars <<EOTFFILE1
+insert-value = "(this is from the tfvars file)"
+EOTFFILE1
+
+    if      $testsh_pwd/terraformsh -P apply
+    then
+
+        TERRAFORM_PWD="$(pwd)"
+        TERRAFORM_MODULE_PWD="$TERRAFORM_PWD"
+
+        # The current method of calculating plan file names (copy-paste from terraformsh):
+        TF_DD_UNIQUE_NAME="$(printf "%s\n%s\n" "$TERRAFORM_PWD" "$TERRAFORM_MODULE_PWD" | md5sum - | awk '{print $1}' | cut -b 1-10)"
+
+        echo "TF_DD_UNIQUE_NAME=$TF_DD_UNIQUE_NAME"
+
+        if [ -e "tf.$TF_DD_UNIQUE_NAME.plan" ] ; then
+            echo "$base_name: ERROR: Plan file found but none expected!"
+            ls -la
+            return 1
+        fi
+
+        if [ ! "$(cat foo.bar.txt)" = "foo:(this is from the tfvars file):bar" ] ; then
+            echo "$base_name: ERROR: file contents were not as expected!"
+            ls -la
+            return 1
+        fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
+    fi
+}
+
+ext_tests="plan_files_disabled plan_files_disabled_cd_dir plan_files_disabled_destroy plan_files_disabled_apply_tfvars"
