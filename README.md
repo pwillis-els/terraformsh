@@ -62,7 +62,7 @@
 
   The plan files are, by default, written to the directory where you ran Terraformsh,
   with a naming convention like `tfsh.92h39d9hd9.plan`. You can override this by
-  setting environent or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
+  setting environment or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
 
 
 ### Multiple commands as arguments
