@@ -73,20 +73,20 @@ This is a configuration file for a deployable directory with Terraformsh.
 ```
 # root/terraform.sh.tfvars
 #
-aws_account_id = "285494004625"
+aws_account_id = "123456789"
 ```
 
 ```
 # root/backend.sh.tfvars
 #
-bucket          = "tf-state-285494004625"
-dynamodb_table  = "tf-state-lock-285494004625"
+bucket          = "tf-state-123456789"
+dynamodb_table  = "tf-state-lock-123456789"
 ```
 
 ```
 # root/stage/terraform.sh.tfvars
 #
-environment_type                = "prod"
+environment_type                = "stage"
 kms_alias_ssm_session_manager   = "ssm-session-manager-main-key-us-east-1"
 ```
 
@@ -113,7 +113,7 @@ CD_DIR="$ROOTDIR/tf/aws/root/rds/cluster-aurora"
 ```
 # root/stage/us-east-1/mysql/terraform.sh.tfvars
 #
-service_name = "notifi"
+service_name = "mydb"
 ```
 ```
 # root/stage/us-east-1/mysql/backend.sh.tfvars
