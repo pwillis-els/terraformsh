@@ -109,10 +109,10 @@ _cmd_apply () {
     local errored=0 ret
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
-    local varfile_arg=("")
+    local varfile_arg=()
     if [ $USE_PLANFILE -eq 1 ]; then
       args+=("$TF_PLANFILE") # Pass plan file after '$@'
-    else
+    elif [ ${#VARFILE_ARG[@]} -gt 0 ] ; then
       varfile_arg=("${VARFILE_ARG[@]}") # only if planfile disabled
     fi
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate

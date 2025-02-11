@@ -36,6 +36,8 @@ _main () {
         base_name="$(basename "$i" .t)"     ### So you don't need ${BASH_SOURCE[0]}
         tmp="$(mktemp -d)"                  ### Copy your test files into here
 
+        echo "$0: Running test '$base_name' ..." 1>&2
+
         . "$i" # load the test script into this shell
 
         # Now we should have a variable $ext_tests set by the test script.
@@ -51,6 +53,8 @@ _main () {
                 pass=$(($pass+1))
             fi
         done
+
+        echo "$0: Finished test '$base_name'" 1>&2
 
         rm -rf "$tmp"
         [ $fail -gt 0 ] && echo "$0: $base_name: Failed $fail tests" && _fail="$(($_fail+$fail))"

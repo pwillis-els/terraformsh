@@ -3,6 +3,14 @@
  - Terraform
  - AWS CLI (only for aws_bootstrap command)
 
+# Installation
+  You can just copy this script to any 'bin/' directory in your PATH.
+
+  You can also pin versions of this script using 'asdf':
+  1. Install ASDF (https://asdf-vm.com/guide/getting-started.html)
+  2. Add the terraformsh plugin (`asdf plugin add asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
+  3. Install terraformsh plugin (`asdf install terraformsh latest`)
+
 # About
   Terraformsh is a Bash script that makes it easier to run Terraform by 
   performing common steps for you. It also makes it easy to keep your
@@ -54,7 +62,7 @@
 
   The plan files are, by default, written to the directory where you ran Terraformsh,
   with a naming convention like `tfsh.92h39d9hd9.plan`. You can override this by
-  setting environent or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
+  setting environment or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
 
 
 ### Multiple commands as arguments
