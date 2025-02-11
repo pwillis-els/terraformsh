@@ -8,8 +8,9 @@
 
   You can also pin versions of this script using 'asdf':
   1. Install ASDF (https://asdf-vm.com/guide/getting-started.html)
-  2. Add the terraformsh plugin (`asdf plugin add asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
-  3. Install terraformsh plugin (`asdf install terraformsh latest`)
+  2. Configure/load ASDF in your shell
+  3. Add the terraformsh plugin (`$ asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
+  4. Install terraformsh plugin (`$ asdf install terraformsh latest`)
 
 # About
   Terraformsh is a Bash script that makes it easier to run Terraform by 
