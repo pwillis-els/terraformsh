@@ -106,13 +106,25 @@ _cmd_plan () {
 }
 _cmd_apply () {
     _final_vars
-    local errored=0 ret
+    local errored=0 ret arg _use_varfiles=1
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
     local varfile_arg=()
+    # Detect if non-option file arguments were passed. If they were,
+    # disable the passing of -var-file arguments as apply can't accept them
+    # if it's accepting a plan file too.
+    if [ ${#args[@]} -gt 0 ] ; then
+        for arg in "${args[@]}" ; do
+            if [ ! "${arg[0]:0:1}" = "-" ] && [ -f "$arg" ] ; then
+                echo "$0: Warning: detected a plan-file passed as an option; not passing varfiles"
+                _use_varfiles=0
+                break
+            fi
+        done
+    fi
     if [ $USE_PLANFILE -eq 1 ]; then
       args+=("$TF_PLANFILE") # Pass plan file after '$@'
-    elif [ ${#VARFILE_ARG[@]} -gt 0 ] ; then
+    elif [ ${#VARFILE_ARG[@]} -gt 0 ] && [ $_use_varfiles -eq 1 ] ; then
       varfile_arg=("${VARFILE_ARG[@]}") # only if planfile disabled
     fi
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
@@ -565,7 +577,6 @@ _process_cmds () {
     cpi=${#CMD_PAIRS[@]} # Save this for later, in case this array was already
     p=$cpi               # populated before this function.
     prev='' prevcmd=''
-    #for (( i = s; i < (${#cmds[@]}-s) ; i++ )) ; do
     for cmd in "${cmds[@]:$s}" ; do
         local valid_cmd=0
         for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
@@ -732,7 +743,7 @@ _pre_dirchange_vars
 declare -a array
 for pair in "${CMD_PAIRS[@]}" ; do
     eval "$pair"
-    name="${array[0]}" # array is defined in 'eval $pair'
+    name="${array[0]}" # 'array' is defined in 'eval $pair'
     if command -v _cmd_"$name" >/dev/null ; then
         _cmd_"$name" "${array[@]:1}"
     else
