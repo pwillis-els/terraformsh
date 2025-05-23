@@ -65,6 +65,12 @@
   with a naming convention like `tfsh.92h39d9hd9.plan`. You can override this by
   setting environment or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
 
+  Should you need to check what the value of *TF_PLANFILE* will be (for example to
+  grab the plan file after running terraformsh), this command will print the value:
+  ```
+  terraformsh env sh -c 'echo $TF_PLANFILE'
+  ```
+
 
 ### Multiple commands as arguments
 
@@ -212,6 +218,14 @@
 
 
   An example file: [.terraformshrc-example](.terraformshrc-example)
+
+  **NOTE:** You can use Terraformsh's `env` command to print out the values
+  of internal Terraform variables as they exist at run time, e.g.:
+  ```
+  terraformsh env
+  ```
+  You can also pass arguments after this, that will be passed to your system's
+  `env` command.
 
 
 ### Interactive troubleshooting
