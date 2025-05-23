@@ -68,7 +68,8 @@
   Should you need to check what the value of *TF_PLANFILE* will be (for example to
   grab the plan file after running terraformsh), this command will print the value:
   ```
-  terraformsh env sh -c 'echo $TF_PLANFILE'
+  $ ./terraformsh -q env sh -c 'echo $TF_PLANFILE'
+  /Users/pwillis/git/GITHUB.COM/PWILLIS-ELS/terraformsh/tf.996d6c1308.plan
   ```
 
 
@@ -175,6 +176,7 @@
     NO_DEP_CMDS=1               # Don't run dependent commands automatically
     NO_CLEANUP_TMP=1            # Don't clean up temporary TF_DATA_DIR
     DRYRUN=1                    # Enable dry-run mode
+    QUIET_MODE=1                # Enable quiet mode
     CD_DIR=             # The directory to change to before running terraform commands
 
   The environment variable `TF_DATA_DIR` is automatically overridden by Terraformsh.

@@ -40,6 +40,8 @@ _usage () {
                       ( config: NO_CLEANUP_TMP=1 )
     -v              Verbose mode.
                       ( config: DEBUG=1 )
+    -q              Quiet mode.
+                      ( config: QUIET_MODE=1 )
     -h              This help screen.
 
 # Commands
