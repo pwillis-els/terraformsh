@@ -85,6 +85,7 @@ passed to the first recognized command that precedes them.
 EOTUSAGE
     exit 1
 }
+
 # Commands collected from versions 0.11,0.12,0.13,0.14,0.15,1.0,1.1
 declare -a TF_COMMANDS=(0.12checklist 0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint test untaint validate version workspace)
 declare -a TF_CMDS_debug=(json2dot)
@@ -116,7 +117,7 @@ _cmd_apply () {
     if [ ${#args[@]} -gt 0 ] ; then
         for arg in "${args[@]}" ; do
             if [ ! "${arg[0]:0:1}" = "-" ] && [ -f "$arg" ] ; then
-                echo "$0: Warning: detected a plan-file passed as an option; not passing varfiles"
+                _log "Warning: detected a plan-file passed as an option; not passing varfiles"
                 _use_varfiles=0
                 break
             fi
@@ -133,11 +134,11 @@ _cmd_apply () {
     [ $ret -eq 0 ] || errored=$ret
     if [ $errored -ne 0 ] ; then
         if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
-            echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
+            _log "Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
             if _cmd_state push errored.tfstate ; then
                 rm -f errored.tfstate
             else
-                _errexit "Error: could not push errored.tfstate!"
+                _errexit "could not push errored.tfstate!"
             fi
         fi
         return $errored
@@ -299,9 +300,9 @@ _cmd_shell () {
     ret=0
     if [ "${NO_DEP_CMDS:-0}" = "0" ] && ! _cmd_get ; then
         ret=$?
-        echo "$0: Previous command failed!"
+        _log "Previous command failed!"
     fi
-    echo "$0: Dropping into shell; see TF_DATA_DIR variable for temp files"
+    _log "Dropping into shell; see TF_DATA_DIR variable for temp files"
     _runcmd bash -i -l
     return $?
 }
@@ -319,10 +320,11 @@ _cmd_clean () {
 }
 _cmd_approve () {
     local approve
-    echo ""
+    [ $QUIET_MODE -eq 1 ] || echo ""
     read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " approve
     if [ "$approve" = "YES" ] ; then
-        echo "$0: Approval given; continuing!" ; echo ""
+        _log "Approval given; continuing!"
+        [ $QUIET_MODE -eq 1 ] || echo ""
     else
         _errexit "Approval not given; exiting!"
     fi
@@ -330,11 +332,10 @@ _cmd_approve () {
 _cmd_revgrep () {
     [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
     (
-        echo "+ cd $TERRAFORM_PWD" 1>&2
+        [ $QUIET_MODE -eq 1 ] || echo "+ cd $TERRAFORM_PWD" 1>&2
         cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
         while read -r LINE ; do
             if [ -e "$LINE" ] ; then
-                #echo "+ grep" "$@" " " "$LINE" 1>&2
                 grep "$@" "$LINE" || true
             fi
         done < <( _rfindfiles "*" "..?*" )
@@ -361,7 +362,7 @@ _cmd_aws_bootstrap () {
     done
 
     if [ -z "${TF_BACKEND_BUCKET:-}" ] || [ -z "${TF_BACKEND_TABLE:-}" ] ; then
-        _errexit "Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
+        _errexit "Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
     fi
 
     # Create a local terraform backend
@@ -377,20 +378,20 @@ _cmd_aws_bootstrap () {
         --bucket "${TF_BACKEND_BUCKET}" --query LocationConstraint --output text \
         || true )"
     if [ -n "$bucket_region" ] ; then
-        echo "$0: Info: importing existing S3 bucket '$TF_BACKEND_BUCKET' ..." 1>&2
+        _stderrlog "Info: importing existing S3 bucket '$TF_BACKEND_BUCKET' ..."
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$TF_BACKEND_BUCKET"
     else
-        echo "$0: Info: Did not find existing S3 bucket '$TF_BACKEND_BUCKET'; creating..." 1>&2
+        _stderrlog "Info: Did not find existing S3 bucket '$TF_BACKEND_BUCKET'; creating..."
     fi
 
     # Attempt to import dynamodb table if it exists
     # TODO: replace 'jq' here with a --query in the AWS CLI
     DYNAMODB_TABLE="$( aws dynamodb list-tables | jq -re "select(.TableNames | index(\"$TF_BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
-        echo "$0: Info: importing existing DynamoDB table '$TF_BACKEND_TABLE' ..." 1>&2
+        _stderrlog "Info: importing existing DynamoDB table '$TF_BACKEND_TABLE' ..."
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$TF_BACKEND_TABLE" || true
     else
-        echo "$0: Info: Did not find backend table '$TF_BACKEND_TABLE'; creating..." 1>&2
+        _stderrlog "Info: Did not find backend table '$TF_BACKEND_TABLE'; creating..."
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
@@ -403,7 +404,7 @@ _cmd_aws_bootstrap () {
     # Create an s3 terraform backend
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraformsh-backend.tf
 
-    echo "$0: Sleeping 60 seconds before querying bucket again ..." 1>&2
+    _stderrlog "Sleeping 60 seconds before querying bucket again ..."
     sleep 60
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
@@ -411,10 +412,10 @@ _cmd_aws_bootstrap () {
 
 _cleanup_tmp () {
     if [ "${NO_CLEANUP_TMP_ON_ERROR:-0}" = "1" ] ; then
-        echo "$0: Error detected; not removing '${TF_TMPDIR:-}'"
+        _log "Error detected; not removing '${TF_TMPDIR:-}'"
     else
         if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
-            echo "$0: Not removing temporary TF_DATA_DIR '${TF_TMPDIR:-}'"
+            _log "Not removing temporary TF_DATA_DIR '${TF_TMPDIR:-}'"
         elif [ -n "${TF_TMPDIR:-}" ] ; then
             rm -rf "$TF_TMPDIR"
         fi
@@ -424,7 +425,7 @@ _tf_ver () {
     local tf_ver
     tf_ver="$($TERRAFORM --version | grep '^Terraform v' | cut -d 'v' -f 2)"
     if [ $? -ne 0 ] ; then
-        echo "$0: Error: 'terraform --version' failed?" 1>&2
+        _stderrlog "Error: 'terraform --version' failed?"
         return 1
     fi
     IFS=. read -r -a tfver_a <<< "${tf_ver}"
@@ -442,7 +443,7 @@ _tf_set_datadir () {
     fi
     if [ -z "${TF_DATA_DIR:-}" ] ; then
         if [ -n "${TF_TMPDIR:-}" ] ; then
-            echo "$0: Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a 'terraform shell' session? You might want to exit your shell before running terraformsh again"
+            _log "Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a 'terraform shell' session? You might want to exit your shell before running terraformsh again"
         fi
         _cleanup_tmp
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
@@ -467,6 +468,7 @@ _default_vars () {
     INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
 
     CD_DIR=""
+    QUIET_MODE=0
     USE_PLANFILE="${USE_PLANFILE:-1}"
     TERRAFORM="${TERRAFORM:-terraform}" # the terraform executable
     PLAN_ARGS=("-input=false")
@@ -516,8 +518,8 @@ _final_vars () {
 
     if [ "${_final_vars_set}" = "0" ] ; then
         if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-            echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
-            echo "" 1>&2
+            _stderrlog "Warning: No -b option passed! Potentially using only local state."
+            [ $QUIET_MODE -eq 1 ] || echo "" 1>&2
             sleep 1
         else
             INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
@@ -595,16 +597,16 @@ _process_cmds () {
         done
         if [ $valid_cmd -eq 0 ] || [ $valid_cmd -eq 2 ] ; then
             if [ $found_cmds -lt 1 ] ; then
-                _errexit "Error: Found non-command '$cmd' before a command was found"
+                _errexit "Found non-command '$cmd' before a command was found"
             fi
             [ $valid_cmd -eq 0 ] && \
-                echo "$0: Warning: '$cmd' is not a valid command; passing as an option instead" 1>&2
+                _stderrlog "Warning: '$cmd' is not a valid command; passing as an option instead"
             [ $valid_cmd -eq 2 ] && \
-                echo "$0: Warning: '$cmd' is a subcommand of previous command '$prevcmd'; passing as an option" 1>&2
+                _stderrlog "Warning: '$cmd' is a subcommand of previous command '$prevcmd'; passing as an option"
             CMD_PAIRS[$p]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
             prev="opt"
         else
-            echo "$0: Info: Found terraform command '$cmd'" 1>&2
+            _stderrlog "Info: Found terraform command '$cmd'"
             CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '('
             found_cmds=$((found_cmds+1))
             prev="cmd"
@@ -615,7 +617,7 @@ _process_cmds () {
         CMD_PAIRS[$p]+=")"
     done
     if [ $(( ${#cmds[@]} - $s )) -lt 1 ] ; then
-        echo "$0: Error: No COMMAND was specified"; echo ""; _usage
+        _log "Error: No COMMAND was specified"; [ $QUIET_MODE -eq 1 ] || echo ""; _usage
     fi
 }
 _dirchange_old=""
@@ -641,8 +643,8 @@ _mktemp () {
     local _cmd="touch" _template="tmp.XXXXXXXXXX" _new _templatetmp
     while getopts "dp:t:" args ; do
         case $args in
-            p)  _dirprefix="$OPTARG" ;;
             d)  _makedir=1 ;;
+            p)  _dirprefix="$OPTARG" ;;
             t)  _makedir=0 ;;
             *)  _errexit "Please pass correct _mktemp options" ;;
         esac
@@ -676,7 +678,6 @@ _rfindfiles () {
         for f in "$@" ; do
             for p in $cwd/$f ; do
                 if [ ! -d "$p" ] && [ -e "$p" ] ; then
-                    #echo "file '$f' p '$p'" 1>&2
                     printf "%s\n" "$p"
                 fi
             done
@@ -685,12 +686,12 @@ _rfindfiles () {
     done
 }
 _runcmd () {
-    echo "+ $*" 1>&2
+    [ $QUIET_MODE -eq 1 ] || echo "+ $*" 1>&2
     if [ ! "${DRYRUN:-0}" = "1" ] ; then "$@"; fi
 }
-_errexit () {
-    echo "$0: $*" ; exit 1
-}
+_errexit () {  echo "$0: Error: $*" ; exit 1 ;  }
+_log () {      [ $QUIET_MODE -eq 1 ] || printf "%s: %s\n" "$0" "$*" ;  }
+_stderrlog () {   _log "$@" 1>&2 ;  }
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
@@ -705,7 +706,7 @@ declare -a CMDS=() CMD_PAIRS=() CONF_FILE=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:IPDNnhv" args ; do
+while getopts "f:b:C:c:E:IPDNnhqv" args ; do
     case $args in
         f)  VARFILES+=("$(_readlinkf "$OPTARG")") ;;
         b)  BACKENDVARFILES+=("$(_readlinkf "$OPTARG")") ;;
@@ -718,9 +719,10 @@ while getopts "f:b:C:c:E:IPDNnhv" args ; do
         N)  DRYRUN=1 ;;
         n)  NO_CLEANUP_TMP=1 ;;
         h)  SHOW_HELP=1 ;;
+        q)  QUIET_MODE=1 ;;
         v)  export DEBUG=1 ;;
         *)
-            _errexit "Error: unknown option $args" ;;
+            _errexit "unknown option $args" ;;
     esac
 done
 shift $(($OPTIND-1))
