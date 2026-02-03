@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# terraformsh - Bash wrapper around Terraform/OpenTofu
+# terraformsh - Bash wrapper around Terraform and OpenTofu
 # Copyright (C) 2020-2021 Peter Willis
 
 set -e -u -o pipefail
@@ -9,7 +9,7 @@ VERSION="0.16"
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOTUSAGE
-    terraformsh v$VERSION - Bash wrapper around Terraform/OpenTofu
+    terraformsh v$VERSION - Bash wrapper around Terraform and OpenTofu
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -425,29 +425,13 @@ _cleanup_tmp () {
 }
 _tf_ver () {
     local tf_ver
-    tf_ver="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d 'v' -f 2)"
-    if [ $? -ne 0 ] ; then
+    tf_ver="$($TERRAFORM --version | grep -E "^Terraform v|^OpenTofu v" | cut -d 'v' -f 2)"
+    if [ $? -ne 0 ] || [ -z "$tf_ver" ] ; then
         _stderrlog "Error: '$TERRAFORM --version' failed?"
         return 1
     fi
     IFS=. read -r -a tfver_a <<< "${tf_ver}"
     printf "%s\n" "${tfver_a[@]}"
-}
-_tf_tool () {
-    # Use --version to detect if the binary is Terraform or OpenTofu
-    # Returns "Terraform:terraform", "OpenTofu:tofu" or "Unknown:unknown"
-    local tf_tool
-    tf_tool="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d ' ' -f 1)"
-    if [ $? -ne 0 ] ; then
-        _stderrlog "Error: '$TERRAFORM --version' failed?"
-        return 1
-    fi
-    # Convert to lowercase and map "opentofu" to "tofu"
-    case "${tf_tool,,}" in
-        terraform) printf "%s\n" "Terraform:terraform" ;;
-        opentofu) printf "%s\n" "OpenTofu:tofu" ;;
-        *) printf "%s\n" "Unknown:unknown" ;;
-    esac
 }
 _tf_set_datadir () {
     TERRAFORM_MODULE_PWD="${TERRAFORM_MODULE_PWD:-$(pwd)}"
@@ -509,10 +493,19 @@ _default_vars () {
     FORCEUNLOCK_ARGS=("-force")
     SHOW_ARGS=()
 
-    _tf_tool_info=$(_tf_tool 2>/dev/null)
-    TERRAFORM_NICE_NAME="${_tf_tool_info%:*}" # Terraform or OpenTofu
-    TERRAFORM_SHORT_NAME="${_tf_tool_info#*:}" # terraform or tofu
-
+    # Detect the name of the Terraform/OpenTofu binary
+    if [ -z "${TERRAFORM_NICE_NAME:-}" ] || [ -z "${TERRAFORM_SHORT_NAME:-}" ] ; then
+        TERRAFORM_NICE_NAME="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d ' ' -f 1)"
+        if [ $? -ne 0 ] || [ -z "$TERRAFORM_NICE_NAME" ] ; then
+            _stderrlog "Error: '$TERRAFORM --version' failed?"
+            return 1
+        fi
+        case "$TERRAFORM_NICE_NAME" in
+            Terraform) TERRAFORM_SHORT_NAME="terraform" ;;
+            OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
+        esac
+    fi
+    
     TERRAFORM_PWD="$(pwd)"
 }
 _pre_dirchange_vars () {
