@@ -9,6 +9,7 @@ _t_plan_files_disabled () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     cd "$tmp"/null-resource-hello-world.tfd
 
     if      $testsh_pwd/terraformsh -P plan
@@ -36,6 +37,7 @@ _t_plan_files_disabled_cd_dir () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
 
     rm -rf "$tmp"/rundir
     mkdir -p "$tmp/rundir"
@@ -70,6 +72,7 @@ _t_plan_files_disabled_destroy () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     cd "$tmp"/null-resource-hello-world.tfd
 
     set -e
@@ -109,6 +112,7 @@ _t_plan_files_disabled_apply_tfvars () {
 
     rm -rf "$tmp"/local-file-hello-world.tfd
     cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/local-file-hello-world.tfd" "$TF_VER"
     cd "$tmp"/local-file-hello-world.tfd
 
     cat >terraform.sh.tfvars <<EOTFFILE1
