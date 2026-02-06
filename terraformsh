@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# terraformsh - Bash wrapper around Terraform
+# terraformsh - Bash wrapper around Terraform and OpenTofu
 # Copyright (C) 2020-2021 Peter Willis
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.15"
+VERSION="0.16"
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOTUSAGE
-    terraformsh v$VERSION
+    terraformsh v$VERSION - Bash wrapper around Terraform and OpenTofu
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -17,9 +17,9 @@ _usage () {
   Pass these OPTIONS before any others (see examples); do not pass them after
   TFVARS or COMMANDs.
 
-    -f FILE         A file passed to Terraform's -var-file option.
+    -f FILE         A file passed to $TERRAFORM_NICE_NAME's -var-file option.
                       ( config: VARFILES= )
-    -b FILE         A file passed to Terraform's -backend-config option.
+    -b FILE         A file passed to $TERRAFORM_NICE_NAME's -backend-config option.
                       ( config: BACKENDVARFILES= )
     -C DIR          Change to directory DIR.
                       ( config: CD_DIR= )
@@ -31,8 +31,8 @@ _usage () {
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
                       ( config: USE_PLANFILE=0 )
-    -D              Don't run 'dependency' commands (e.g. don't run "terraform
-                    init" before "terraform apply").
+    -D              Don't run 'dependency' commands (e.g. don't run "$TERRAFORM_SHORT_NAME
+                    init" before "$TERRAFORM_SHORT_NAME apply").
                       ( config: NO_DEP_CMDS=1 )
     -N              Dry-run mode (don't execute anything).
                       ( config: DRYRUN=1 )
@@ -46,29 +46,29 @@ _usage () {
 
 # Commands
 
-  The following are Terraform commands that terraformsh provides wrappers for
-  (there's some Terraformsh-specific logic behind the scenes). Other Terraform
-  commands not listed here are passed through to Terraform verbatim.
+  The following are $TERRAFORM_NICE_NAME commands that terraformsh provides wrappers for
+  (there's some Terraformsh-specific logic behind the scenes). Other $TERRAFORM_NICE_NAME
+  commands not listed here are passed through to $TERRAFORM_NICE_NAME verbatim.
 
-    plan              Run init, get, validate, \`terraform plan @VARFILE_ARG -out \$TF_PLANFILE\`
-    apply             Run init, get, validate, \`terraform apply \$TF_PLANFILE\`
-    plan_destroy      Run init, get, validate, \`terraform plan -destroy -out=\$TF_DESTROY_PLANFILE\`
-    destroy           Run init, get, validate, \`terraform apply \$TF_DESTROY_PLANFILE\`
-    refresh           Run init, \`terraform refresh\`
-    validate          Run init, get, \`terraform validate\`
-    init              Run clean_modules, \`terraform init @BACKENDVARFILE_ARG\`
-    get               Run init, \`terraform get [..]\`
-    show              Run init, \`terraform show [..]\`
-    import            Run init, \`terraform import [..]\`
-    state             Run init, \`terraform state [..]\`
-    taint             Run init, \`terraform taint [..]\`
-    untaint           Run init, \`terraform untaint [..]\`
-    output            Run init, refresh, \`terraform output [..]\`
-    console           Run init, \`terraform console [..]\`
-    workspace         Run init, \`terraform workspace [..]\`
-    force-unlock      Run init, \`terraform force-unlock [..]\`
-    0.12upgrade       Run init, \`terraform 0.12upgrade [..]\`
-    0.13upgrade       Run init, \`terraform 0.13upgrade [..]\`
+    plan              Run init, get, validate, \`$TERRAFORM_SHORT_NAME plan @VARFILE_ARG -out \$TF_PLANFILE\`
+    apply             Run init, get, validate, \`$TERRAFORM_SHORT_NAME apply \$TF_PLANFILE\`
+    plan_destroy      Run init, get, validate, \`$TERRAFORM_SHORT_NAME plan -destroy -out=\$TF_DESTROY_PLANFILE\`
+    destroy           Run init, get, validate, \`$TERRAFORM_SHORT_NAME apply \$TF_DESTROY_PLANFILE\`
+    refresh           Run init, \`$TERRAFORM_SHORT_NAME refresh\`
+    validate          Run init, get, \`$TERRAFORM_SHORT_NAME validate\`
+    init              Run clean_modules, \`$TERRAFORM_SHORT_NAME init @BACKENDVARFILE_ARG\`
+    get               Run init, \`$TERRAFORM_SHORT_NAME get [..]\`
+    show              Run init, \`$TERRAFORM_SHORT_NAME show [..]\`
+    import            Run init, \`$TERRAFORM_SHORT_NAME import [..]\`
+    state             Run init, \`$TERRAFORM_SHORT_NAME state [..]\`
+    taint             Run init, \`$TERRAFORM_SHORT_NAME taint [..]\`
+    untaint           Run init, \`$TERRAFORM_SHORT_NAME untaint [..]\`
+    output            Run init, refresh, \`$TERRAFORM_SHORT_NAME output [..]\`
+    console           Run init, \`$TERRAFORM_SHORT_NAME console [..]\`
+    workspace         Run init, \`$TERRAFORM_SHORT_NAME workspace [..]\`
+    force-unlock      Run init, \`$TERRAFORM_SHORT_NAME force-unlock [..]\`
+    0.12upgrade       Run init, \`$TERRAFORM_SHORT_NAME 0.12upgrade [..]\`
+    0.13upgrade       Run init, \`$TERRAFORM_SHORT_NAME 0.13upgrade [..]\`
 
   The following commands are specific to terraformsh:
 
@@ -77,11 +77,11 @@ _usage () {
     clean_modules     Run \`rm -v -rf .terraform/modules/*\`
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
-                      If found, creates the bucket and table and initializes your Terraform state with them.
+                      If found, creates the bucket and table and initializes your $TERRAFORM_NICE_NAME state with them.
     revgrep           Run 'grep' on files in all parent directories
     env               Run 'env' command with optional arguments
 
-All arguments after a COMMAND are evaluated for whether they match a Terraform
+All arguments after a COMMAND are evaluated for whether they match a $TERRAFORM_NICE_NAME
 or Terraformsh command; if they don't, they are assumed to be options and are
 passed to the first recognized command that precedes them.
 EOTUSAGE
@@ -367,7 +367,7 @@ _cmd_aws_bootstrap () {
         _errexit "Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
     fi
 
-    # Create a local terraform backend
+    # Create a local terraform backend - OpenTofu still uses the 'terraform' syntax for this block
     printf "terraform {\n\tbackend local {}\n}\n" > terraformsh-backend.tf
 
     # First remove any existing previous local state
@@ -403,7 +403,7 @@ _cmd_aws_bootstrap () {
         -out "$TF_BOOTSTRAP_PLANFILE"
     _runcmd "$TERRAFORM" apply -input=false "$TF_BOOTSTRAP_PLANFILE"
 
-    # Create an s3 terraform backend
+    # Create an s3 terraform backend - OpenTofu still uses the 'terraform' syntax for this block
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraformsh-backend.tf
 
     _stderrlog "Sleeping 60 seconds before querying bucket again ..."
@@ -425,9 +425,9 @@ _cleanup_tmp () {
 }
 _tf_ver () {
     local tf_ver
-    tf_ver="$($TERRAFORM --version | grep '^Terraform v' | cut -d 'v' -f 2)"
-    if [ $? -ne 0 ] ; then
-        _stderrlog "Error: 'terraform --version' failed?"
+    tf_ver="$($TERRAFORM --version | grep -E "^Terraform v|^OpenTofu v" | cut -d 'v' -f 2)"
+    if [ $? -ne 0 ] || [ -z "$tf_ver" ] ; then
+        _stderrlog "Error: '$TERRAFORM --version' failed?"
         return 1
     fi
     IFS=. read -r -a tfver_a <<< "${tf_ver}"
@@ -445,7 +445,7 @@ _tf_set_datadir () {
     fi
     if [ -z "${TF_DATA_DIR:-}" ] ; then
         if [ -n "${TF_TMPDIR:-}" ] ; then
-            _log "Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a 'terraform shell' session? You might want to exit your shell before running terraformsh again"
+            _log "Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a '$TERRAFORM_SHORT_NAME shell' session? You might want to exit your shell before running terraformsh again"
         fi
         _cleanup_tmp
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
@@ -493,6 +493,19 @@ _default_vars () {
     FORCEUNLOCK_ARGS=("-force")
     SHOW_ARGS=()
 
+    # Detect the name of the Terraform/OpenTofu binary
+    if [ -z "${TERRAFORM_NICE_NAME:-}" ] || [ -z "${TERRAFORM_SHORT_NAME:-}" ] ; then
+        TERRAFORM_NICE_NAME="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d ' ' -f 1)"
+        if [ $? -ne 0 ] || [ -z "$TERRAFORM_NICE_NAME" ] ; then
+            _stderrlog "Error: '$TERRAFORM --version' failed?"
+            return 1
+        fi
+        case "$TERRAFORM_NICE_NAME" in
+            Terraform) TERRAFORM_SHORT_NAME="terraform" ;;
+            OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
+        esac
+    fi
+    
     TERRAFORM_PWD="$(pwd)"
 }
 _pre_dirchange_vars () {
@@ -608,7 +621,7 @@ _process_cmds () {
             CMD_PAIRS[$p]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
             prev="opt"
         else
-            _stderrlog "Info: Found terraform command '$cmd'"
+            _stderrlog "Info: Found $TERRAFORM_SHORT_NAME command '$cmd'"
             CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '('
             found_cmds=$((found_cmds+1))
             prev="cmd"
