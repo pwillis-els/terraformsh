@@ -28,6 +28,10 @@ _t_plan_files_disabled () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
@@ -59,6 +63,10 @@ _t_plan_files_disabled_cd_dir () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la "$tmp/null-resource-hello-world.tfd"
+        return 1
     fi
 }
 
@@ -99,6 +107,10 @@ _t_plan_files_disabled_destroy () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 

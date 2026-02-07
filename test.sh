@@ -23,9 +23,9 @@ set -u
 
  # Function to delete version-specific tf file that might not be needed based on the TF version
 _check_and_delete_provider_files() {
-    local folder="$1"
-    local tf_ver="$2"
-    if [ ! -z "$folder" ] && [ -d "$folder" ]; then
+    folder="$1"
+    tf_ver="$2"
+    if [ -n "$folder" ] && [ -d "$folder" ]; then
         # Based on the TF version, keep or delete specific files
         if [ "$tf_ver" = "pre-0.12" ]; then
             find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Keeping version-specific provider file: {}" \;
@@ -45,6 +45,8 @@ _main () {
     . "tests/0000-pre-req-detect-tf-version.sh"
 
     for i in "$@" ; do
+
+        echo "======================================================================"
 
         cd "$testsh_pwd"
 
@@ -77,6 +79,8 @@ _main () {
         _pass=$(($_pass+$pass))
 
     done
+
+    echo "======================================================================"
 }
 
 _main "$@"
