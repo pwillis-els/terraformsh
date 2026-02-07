@@ -1,11 +1,13 @@
 # terraformsh
 
 ## Requirements
+
  - Bash (v3+)
  - Terraform or OpenTofu
  - AWS CLI (only for aws_bootstrap command)
 
 ## Installation
+
   You can just copy this script to any 'bin/' directory in your PATH.
 
   You can also pin versions of this script using 'asdf':
@@ -71,11 +73,11 @@
 
   Should you need to check what the value of *TF_PLANFILE* will be (for example to
   grab the plan file after running terraformsh), this command will print the value:
+  
   ```
   $ ./terraformsh -q env sh -c 'echo $TF_PLANFILE'
   /Users/pwillis/git/GITHUB.COM/PWILLIS-ELS/terraformsh/tf.996d6c1308.plan
   ```
-
 
 ### Multiple commands as arguments
 
