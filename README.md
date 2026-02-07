@@ -1,9 +1,11 @@
-# Requirements
+# terraformsh
+
+## Requirements
  - Bash (v3+)
- - Terraform
+ - Terraform or OpenTofu
  - AWS CLI (only for aws_bootstrap command)
 
-# Installation
+## Installation
   You can just copy this script to any 'bin/' directory in your PATH.
 
   You can also pin versions of this script using 'asdf':
@@ -12,12 +14,14 @@
   3. Add the terraformsh plugin (`$ asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
   4. Install terraformsh plugin (`$ asdf install terraformsh latest`)
 
-# About
-  Terraformsh is a Bash script that makes it easier to run Terraform by 
-  performing common steps for you. It also makes it easy to keep your
-  configuration DRY and deploy infrastructure based on a directory
-  hierarchy of environments. See [DRY_CODE.md](./DRY_CODE.md) for
-  more details.
+## About
+
+  **Note:** Throughout this documentation, the terms **"Terraform"** and **"OpenTofu"** are used interchangeably. All commands, configurations, and practices are compatible with both tools.
+
+  Terraformsh is a Bash script that makes it easier to run Terraform or
+  OpenTofu by performing common steps for you. It also makes it easy to
+  keep your configuration DRY and deploy infrastructure based on a directory
+  hierarchy of environments. See [DRY_CODE.md](./DRY_CODE.md) for more details.
 
   Unlike Terragrunt, this script includes no DSL or code generation. All it
   does is make it easier to call Terraform. See [PHILOSOPHY.md](./PHILOSOPHY.md)
@@ -308,11 +312,13 @@
 
 ---
 
+## Usage
 
-    terraformsh v0.15
+    $ terraformsh -h
+    terraformsh v0.16 - Bash wrapper around Terraform and OpenTofu
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
-# Options
+### Options
 
   Pass these OPTIONS before any others (see examples); do not pass them after
   TFVARS or COMMANDs.
@@ -344,7 +350,7 @@
                       ( config: QUIET_MODE=1 )
     -h              This help screen.
 
-# Commands
+### Commands
 
   The following are Terraform commands that terraformsh provides wrappers for
   (there's some Terraformsh-specific logic behind the scenes). Other Terraform

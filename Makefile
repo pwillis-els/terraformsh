@@ -19,4 +19,4 @@ lint:
 
 readme:
 	cat README.md.tmpl > README.md
-	./terraformsh -h >> README.md ; true
+	./terraformsh -h| sed -e "s|^#|###|g" >> README.md ; true
