@@ -1,9 +1,13 @@
-# Requirements
+# terraformsh
+
+## Requirements
+
  - Bash (v3+)
- - Terraform
+ - Terraform or OpenTofu
  - AWS CLI (only for aws_bootstrap command)
 
-# Installation
+## Installation
+
   You can just copy this script to any 'bin/' directory in your PATH.
 
   You can also pin versions of this script using 'asdf':
@@ -12,12 +16,14 @@
   3. Add the terraformsh plugin (`$ asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
   4. Install terraformsh plugin (`$ asdf install terraformsh latest`)
 
-# About
-  Terraformsh is a Bash script that makes it easier to run Terraform by 
-  performing common steps for you. It also makes it easy to keep your
-  configuration DRY and deploy infrastructure based on a directory
-  hierarchy of environments. See [DRY_CODE.md](./DRY_CODE.md) for
-  more details.
+## About
+
+  **Note:** Throughout this documentation, the terms **"Terraform"** and **"OpenTofu"** are used interchangeably. All commands, configurations, and practices are compatible with both tools.
+
+  Terraformsh is a Bash script that makes it easier to run Terraform or
+  OpenTofu by performing common steps for you. It also makes it easy to
+  keep your configuration DRY and deploy infrastructure based on a directory
+  hierarchy of environments. See [DRY_CODE.md](./DRY_CODE.md) for more details.
 
   Unlike Terragrunt, this script includes no DSL or code generation. All it
   does is make it easier to call Terraform. See [PHILOSOPHY.md](./PHILOSOPHY.md)
@@ -67,11 +73,11 @@
 
   Should you need to check what the value of *TF_PLANFILE* will be (for example to
   grab the plan file after running terraformsh), this command will print the value:
+  
   ```
   $ ./terraformsh -q env sh -c 'echo $TF_PLANFILE'
   /Users/pwillis/git/GITHUB.COM/PWILLIS-ELS/terraformsh/tf.996d6c1308.plan
   ```
-
 
 ### Multiple commands as arguments
 
@@ -308,4 +314,6 @@
 
 ---
 
+## Usage
 
+    $ terraformsh -h
