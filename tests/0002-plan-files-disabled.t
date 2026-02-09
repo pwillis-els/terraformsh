@@ -85,7 +85,7 @@ _t_plan_files_disabled_destroy () {
 
     set -e
 
-    if     $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy 2>&1 | tee test.log
+    if      $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy 2>&1 | tee test.log
     then
 
         # Check for 'apply'

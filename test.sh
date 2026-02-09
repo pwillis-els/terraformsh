@@ -27,10 +27,10 @@ _check_and_delete_provider_files() {
     tf_ver="$2"
     if [ -n "$folder" ] && [ -d "$folder" ]; then
         # Based on the TF version, keep or delete specific files
-        if [ "$tf_ver" = "pre-0.12" ]; then
-            find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Keeping version-specific provider file: {}" \;
-        else
+        if [ "$tf_ver" != "pre-0.12" ]; then
             find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Removing unnecessary provider file: {}" \; -delete
+        else
+            find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Keeping version-specific provider file: {}" \;
         fi
     fi
 }
@@ -48,7 +48,7 @@ _main () {
 
         echo "======================================================================"
 
-        cd "$testsh_pwd"
+        cd "$testsh_pwd" || exit 1
 
         # The following variables should be used by *.t scripts
         base_name="$(basename "$i" .t)"     ### So you don't need ${BASH_SOURCE[0]}
