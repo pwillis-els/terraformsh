@@ -561,7 +561,7 @@ _load_conf () {
         # that behavior, pass the real file path yourself, don't rely on this.
         . "$(_readlinkf "$conf")"
         done
-    fi
+    done
     return 0
 }
 _load_parent_tffiles () {
