@@ -45,7 +45,7 @@ _t_plan_files_disabled_cd_dir () {
 
     rm -rf "$tmp"/rundir
     mkdir -p "$tmp/rundir"
-    cd "$tmp"/rundir
+    cd "$tmp"/rundir || return 1
 
     if      $testsh_pwd/terraformsh -C "$tmp/null-resource-hello-world.tfd" -P plan
     then
@@ -81,7 +81,7 @@ _t_plan_files_disabled_destroy () {
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
-    cd "$tmp"/null-resource-hello-world.tfd
+    cd "$tmp"/null-resource-hello-world.tfd || return 1
 
     set -e
 
@@ -125,7 +125,7 @@ _t_plan_files_disabled_apply_tfvars () {
     rm -rf "$tmp"/local-file-hello-world.tfd
     cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
     _check_and_delete_provider_files "$tmp/local-file-hello-world.tfd" "$TF_VER"
-    cd "$tmp"/local-file-hello-world.tfd
+    cd "$tmp"/local-file-hello-world.tfd || return 1
 
     cat >terraform.sh.tfvars <<EOTFFILE1
 insert-value = "(this is from the tfvars file)"

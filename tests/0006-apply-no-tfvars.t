@@ -8,7 +8,7 @@ _t_apply_no_tfvars () {
 
     rm -rf "$tmp"/local-file-hello-world.tfd
     cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
-    cd "$tmp"/local-file-hello-world.tfd || exit 1
+    cd "$tmp"/local-file-hello-world.tfd || return 1
 
     if      $testsh_pwd/terraformsh plan apply
     then
