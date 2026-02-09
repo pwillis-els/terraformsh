@@ -28,6 +28,10 @@ _t_plan_files_disabled () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
@@ -43,7 +47,7 @@ _t_plan_files_disabled_cd_dir () {
     mkdir -p "$tmp/rundir"
     cd "$tmp"/rundir
 
-    if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tfd" -P plan
+    if      $testsh_pwd/terraformsh -C "$tmp/null-resource-hello-world.tfd" -P plan
     then
 
         TERRAFORM_PWD="$(pwd)"
@@ -59,6 +63,10 @@ _t_plan_files_disabled_cd_dir () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la "$tmp/null-resource-hello-world.tfd"
+        return 1
     fi
 }
 
@@ -99,6 +107,10 @@ _t_plan_files_disabled_destroy () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
