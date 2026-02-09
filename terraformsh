@@ -560,7 +560,6 @@ _load_conf () {
         # NOTE: This is not a replacement for 'readlink -f'; if you want
         # that behavior, pass the real file path yourself, don't rely on this.
         . "$(_readlinkf "$conf")"
-        done
     done
     return 0
 }
