@@ -544,16 +544,22 @@ _final_vars () {
 }
 _load_conf () {
     # Don't load the default configs if one was passed via '-c'
+    declare -a _tmp_confs=()
     if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "terraformsh.conf" ; do
-            [ -e "$f" ] && . "$(_readlinkf "$f")"
-        done
+        _tmp_confs=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "./terraformsh.conf")
     # If '-c' was passed, let the user pass only the configs they want to load.
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
-        for conf in "${CONF_FILE[@]}" ; do
-            # NOTE: This is not a replacement for 'readlink -f'; if you want
-            # that behavior, pass the real file path yourself, don't rely on this.
-            . "$(_readlinkf "$conf")"
+        _tmp_confs=("${CONF_FILE[@]}")
+    fi
+    for conf in "${_tmp_confs[@]}" ; do
+        if [ -d "$conf" ] ; then
+            _errexit "Config file '$conf' is a directory! Exiting"
+        elif [ ! -r "$conf" ] ; then
+            _errexit "Error: could not read conf file '$conf'! Exiting"
+        fi
+        # NOTE: This is not a replacement for 'readlink -f'; if you want
+        # that behavior, pass the real file path yourself, don't rely on this.
+        . "$(_readlinkf "$conf")"
         done
     fi
     return 0
