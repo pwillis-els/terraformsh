@@ -8,7 +8,7 @@ _t_plan_files_enabled () {
     pwd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
-    cd "$tmp"/null-resource-hello-world.tfd
+    cd "$tmp"/null-resource-hello-world.tfd || return 1
     if      $testsh_pwd/terraformsh plan
     then
 
@@ -38,7 +38,7 @@ _t_plan_files_enabled_cd_dir () {
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     mkdir -p "$tmp/rundir"
-    cd "$tmp"/rundir
+    cd "$tmp"/rundir || return 1
     if      $testsh_pwd/terraformsh -C "$tmp/null-resource-hello-world.tfd" plan
     then
 
