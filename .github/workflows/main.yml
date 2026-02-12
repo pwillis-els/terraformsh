@@ -2,10 +2,6 @@ name: Continuous Integration
 
 on:
 
-  # Enable this block when testing on custom branches
-  push:
-    branches: [ test-github-actions-branch ]
-
   pull_request:
     branches: [ main ]
 
