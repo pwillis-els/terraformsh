@@ -54,7 +54,7 @@ jobs:
           build-args: "TFVER=${{ matrix.version }}"
 
       - name: Run test suite
-        uses: addnab/docker-run-action@v3
+        uses: maus007/docker-run-action-fork@v1
         with:
           image: "local-terraform:${{ matrix.version }}"
           options: "-v ${{ github.workspace }}:/work -w /work"
@@ -95,7 +95,7 @@ jobs:
           build-args: "VERSION=${{ matrix.version }}"
 
       - name: Run test suite
-        uses: addnab/docker-run-action@v3
+        uses: maus007/docker-run-action-fork@v1
         with:
           image: "local-opentofu:${{ matrix.version }}"
           options: "-v ${{ github.workspace }}:/work -w /work"
