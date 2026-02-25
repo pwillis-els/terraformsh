@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # terraformsh - Bash wrapper around Terraform and OpenTofu
+# https://github.com/pwillis-els/terraformsh
 # Copyright (C) 2020-2021 Peter Willis
 
 set -e -u -o pipefail
@@ -9,7 +10,7 @@ VERSION="0.16"
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOTUSAGE
-    terraformsh v$VERSION - Bash wrapper around Terraform and OpenTofu
+    $(basename "$0") v$VERSION - Bash wrapper around Terraform and OpenTofu
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -469,10 +470,28 @@ _default_vars () {
     # This enables the above functionality by default ('-I' sets this to 0)
     INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
 
+    # If TERRAFORM is not provided, we will try to auto-detect the executable
+    if [ -z "${TERRAFORM:-}" ]; then
+        SCRIPT_NAME="$(basename "$0")" # Get the terraformsh script name (symlink or real)
+        # Determine binary based on script name
+        case "$SCRIPT_NAME" in
+            tofush)
+                TERRAFORM="tofu"
+                ;;
+            *)  # terraformsh or any other name
+                TERRAFORM="terraform"
+                ;;
+        esac
+        # Exit with an error if we can't find the executable
+        if ! command -v "$TERRAFORM" >/dev/null 2>&1; then
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and '$TERRAFORM' binary was not found in PATH."
+            return 1
+        fi
+    fi
+
     CD_DIR=""
     QUIET_MODE=0
     USE_PLANFILE="${USE_PLANFILE:-1}"
-    TERRAFORM="${TERRAFORM:-terraform}" # the terraform executable
     PLAN_ARGS=("-input=false")
     APPLY_ARGS=("-input=false")
     PLANDESTROY_ARGS=("-input=false")
@@ -505,7 +524,7 @@ _default_vars () {
             OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
         esac
     fi
-    
+
     TERRAFORM_PWD="$(pwd)"
 }
 _pre_dirchange_vars () {
