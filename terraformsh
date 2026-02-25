@@ -472,7 +472,6 @@ _default_vars () {
     CD_DIR=""
     QUIET_MODE=0
     USE_PLANFILE="${USE_PLANFILE:-1}"
-    TERRAFORM="${TERRAFORM:-terraform}" # the terraform executable
     PLAN_ARGS=("-input=false")
     APPLY_ARGS=("-input=false")
     PLANDESTROY_ARGS=("-input=false")
@@ -493,6 +492,18 @@ _default_vars () {
     FORCEUNLOCK_ARGS=("-force")
     SHOW_ARGS=()
 
+    # Set TERRAFORM to user-provided value, or detect available binary
+    if [ -z "${TERRAFORM:-}" ]; then
+        if command -v terraform >/dev/null 2>&1; then
+            TERRAFORM="terraform"
+        elif command -v tofu >/dev/null 2>&1; then
+            TERRAFORM="tofu"
+        else
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and neither 'terraform' nor 'tofu' binary was found in PATH."
+            return 1
+        fi
+    fi
+
     # Detect the name of the Terraform/OpenTofu binary
     if [ -z "${TERRAFORM_NICE_NAME:-}" ] || [ -z "${TERRAFORM_SHORT_NAME:-}" ] ; then
         TERRAFORM_NICE_NAME="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d ' ' -f 1)"
@@ -505,7 +516,7 @@ _default_vars () {
             OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
         esac
     fi
-    
+
     TERRAFORM_PWD="$(pwd)"
 }
 _pre_dirchange_vars () {
