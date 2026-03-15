@@ -23,6 +23,14 @@ PLAN_ARGS+=("-refresh=false")
 EOTCONF
 
     output="$($testsh_pwd/terraformsh -N -D plan 2>&1)"
+    if echo "$output" | grep -q -- "+ terraform plan" ; then
+        :
+    elif echo "$output" | grep -q -- "+ tofu plan" ; then
+        :
+    else
+        echo "$base_name: ERROR: Expected terraform or tofu plan command output."
+        return 1
+    fi
     echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
     echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
     echo "$output" | grep -q -- "-lock=false" || return 1
