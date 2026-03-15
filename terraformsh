@@ -502,7 +502,8 @@ _default_vars () {
                     TERRAFORM="tofu"
                     ;;
                 *)
-                    _stderrlog "Error: When both terraform and tofu are installed, the script must be invoked as terraformsh or tofush (for example, via a symlink). Current name: '$SCRIPT_NAME'. Alternatively, set TERRAFORM to explicitly choose a tool."
+                    _stderrlog "Error: When both terraform and tofu are installed, invoke as terraformsh or tofush (e.g., via symlink)."
+                    _stderrlog "       Current name: '$SCRIPT_NAME'. Alternatively, set TERRAFORM to explicitly choose a tool."
                     return 1
                     ;;
             esac
