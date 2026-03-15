@@ -45,7 +45,7 @@ rootmodule/
         └── versions.tf
 ```
 
-Next we'll make the Terraform `*.tfvars` configuration that will be used by the variables in the Terraform modules. The names of these config files are auto-detected by **Terraformsh** if they are in the current directory or a parent directory. We'll put them in a directory called `config/`.
+Next we'll make the Terraform `*.tfvars` configuration that will be used by the variables in the Terraform modules. The names of these config files are auto-detected by **Terraformsh** if they are in the current directory or a parent directory. Terraformsh can also auto-detect OpenTofu-specific `tofu.sh.tfvars` files when OpenTofu is used (or when only one tool is installed). We'll put them in a directory called `config/`.
 ```
 $ tree config/
 config/
@@ -72,7 +72,7 @@ The last part - how you actually run **Terraformsh** - is completely up to you. 
 
  - If your current working directory isn't a Terraform root module, you'll have to pass the `-C` option to **Terraformsh** to have it change to a root directory for you. So you can decide to either change directories every time you want to run **Terraformsh** (just like with Terraform), or you can pass the `-C` option to **Terraformsh**, or you can create a `.terraformshrc` config file with the `CD_DIR=...` option defined. The latter is the easiest way to run **Terraformsh**.
 
- - To pass configuration files to Terraform (your root modules probably have variables they want configuration for) you can pass the `-f` and `-b` options to **Terraformsh**. But if any files exist in the current or parent directories matching specific file names (`terraform.sh.tfvars`, `terraform.sh.tfvars.json`, `backend.sh.tfvars`), those config files will be loaded automatically. In addition, you can specify any configs you want in a `.terraformshrc` config file. So you can run **Terraformsh** from specific `config/` directory, or you can use the `.terraformshrc` config files from any directory.
+ - To pass configuration files to Terraform (your root modules probably have variables they want configuration for) you can pass the `-f` and `-b` options to **Terraformsh**. But if any files exist in the current or parent directories matching specific file names (`terraform.sh.tfvars`, `tofu.sh.tfvars`, `terraform.sh.tfvars.json`, `tofu.sh.tfvars.json`, `backend.sh.tfvars`), those config files will be loaded automatically. In addition, you can specify any configs you want in a `.terraformshrc` config file. So you can run **Terraformsh** from specific `config/` directory, or you can use the `.terraformshrc` config files from any directory.
 
  - Any option can be controlled from a `.terraformshrc` file, and you can pass those config files to **Terraformsh** using the `-c` option. On top of that, the `.terraformshrc` file is actually just a shell script loaded into **Terraformsh**'s shell at run time. You can really do anything you want with that file, including modifying the **Terraformsh** code on the fly!
 
@@ -141,4 +141,3 @@ $ terraformsh aws_bootstrap
 $ terraformsh
 ..... <terraformsh output> .....
 ```
-

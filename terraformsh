@@ -27,7 +27,8 @@ _usage () {
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
+                    'tofu.sh.tfvars', 'terraform.sh.tfvars.json',
+                    'tofu.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
@@ -464,29 +465,64 @@ _default_vars () {
 
     # Override these variables to change the config files that are automatically loaded
     # when found in any parent directories (disable with the '-I' option).
+    local tf_auto_config_default=0
+    if [ -z "${TF_AUTO_CONFIG_FILE+x}" ] ; then
+        TF_AUTO_CONFIG_FILE="terraform.sh.tfvars"
+        tf_auto_config_default=1
+    fi
     TF_BACKEND_AUTO_CONFIG_FILE="${TF_BACKEND_AUTO_CONFIG_FILE:-backend.sh.tfvars}"
-    TF_AUTO_CONFIG_FILE="${TF_AUTO_CONFIG_FILE:-terraform.sh.tfvars}"
 
     # This enables the above functionality by default ('-I' sets this to 0)
     INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
 
+    SCRIPT_NAME="$(basename "$0")" # Get the terraformsh script name (symlink or real)
+    TERRAFORM_TOOLS_EXIST="none"
+    local has_terraform=0 has_tofu=0
+    command -v terraform >/dev/null 2>&1 && has_terraform=1
+    command -v tofu >/dev/null 2>&1 && has_tofu=1
+    if [ $has_terraform -eq 1 ] && [ $has_tofu -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="both"
+    elif [ $has_terraform -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="terraform"
+    elif [ $has_tofu -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="tofu"
+    fi
+
+    local terraform_user_set=0
     # If TERRAFORM is not provided, we will try to auto-detect the executable
-    if [ -z "${TERRAFORM:-}" ]; then
-        SCRIPT_NAME="$(basename "$0")" # Get the terraformsh script name (symlink or real)
-        # Determine binary based on script name
-        case "$SCRIPT_NAME" in
-            tofush)
-                TERRAFORM="tofu"
-                ;;
-            *)  # terraformsh or any other name
-                TERRAFORM="terraform"
-                ;;
-        esac
-        # Exit with an error if we can't find the executable
-        if ! command -v "$TERRAFORM" >/dev/null 2>&1; then
-            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and '$TERRAFORM' binary was not found in PATH."
+    if [ -n "${TERRAFORM:-}" ] ; then
+        terraform_user_set=1
+    else
+        if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+            case "$SCRIPT_NAME" in
+                terraformsh)
+                    TERRAFORM="terraform"
+                    ;;
+                tofush)
+                    TERRAFORM="tofu"
+                    ;;
+                *)
+                    _stderrlog "Error: Invalid script name '$SCRIPT_NAME' (expected terraformsh or tofush)."
+                    return 1
+                    ;;
+            esac
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+            TERRAFORM="terraform"
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+            TERRAFORM="tofu"
+        else
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and neither terraform nor tofu was found in PATH."
             return 1
         fi
+    fi
+    # Exit with an error if we can't find the executable
+    if ! command -v "$TERRAFORM" >/dev/null 2>&1; then
+        if [ $terraform_user_set -eq 1 ] ; then
+            _stderrlog "Error: 'TERRAFORM' is set to '$TERRAFORM', but it was not found in PATH."
+        else
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and '$TERRAFORM' binary was not found in PATH."
+        fi
+        return 1
     fi
 
     CD_DIR=""
@@ -523,6 +559,41 @@ _default_vars () {
             Terraform) TERRAFORM_SHORT_NAME="terraform" ;;
             OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
         esac
+    fi
+
+    TF_AUTO_CONFIG_FILES=()
+    if [ $tf_auto_config_default -eq 1 ] ; then
+        if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+            if [ "$TERRAFORM_SHORT_NAME" = "tofu" ] ; then
+                TF_AUTO_CONFIG_FILES=("tofu.sh.tfvars")
+            else
+                TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars")
+            fi
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+            TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars" "tofu.sh.tfvars")
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+            TF_AUTO_CONFIG_FILES=("tofu.sh.tfvars" "terraform.sh.tfvars")
+        else
+            TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars")
+        fi
+    else
+        TF_AUTO_CONFIG_FILES=("$TF_AUTO_CONFIG_FILE")
+    fi
+
+    TF_BACKEND_AUTO_CONFIG_FILES=("$TF_BACKEND_AUTO_CONFIG_FILE")
+    DEFAULT_CONF_FILES=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc")
+    if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+        if [ "$TERRAFORM_SHORT_NAME" = "tofu" ] ; then
+            DEFAULT_CONF_FILES+=("./tofush.conf")
+        else
+            DEFAULT_CONF_FILES+=("./terraformsh.conf")
+        fi
+    elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+        DEFAULT_CONF_FILES+=("./tofush.conf" "./terraformsh.conf")
+    elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+        DEFAULT_CONF_FILES+=("./terraformsh.conf" "./tofush.conf")
+    else
+        DEFAULT_CONF_FILES+=("./terraformsh.conf")
     fi
 
     TERRAFORM_PWD="$(pwd)"
@@ -565,7 +636,11 @@ _load_conf () {
     local _usedefaultconf=1
     declare -a _tmp_confs=()
     if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        _tmp_confs=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "./terraformsh.conf")
+        if [ ${#DEFAULT_CONF_FILES[@]} -gt 0 ] ; then
+            _tmp_confs=("${DEFAULT_CONF_FILES[@]}")
+        else
+            _tmp_confs=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "./terraformsh.conf")
+        fi
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
         _usedefaultconf=0
         _tmp_confs=("${CONF_FILE[@]}")
@@ -592,9 +667,21 @@ _load_conf () {
 }
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE" )
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE.json" )
-        while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
+        declare -a auto_files=("${TF_AUTO_CONFIG_FILES[@]}")
+        declare -a backend_files=("${TF_BACKEND_AUTO_CONFIG_FILES[@]}")
+        if [ ${#auto_files[@]} -lt 1 ] ; then
+            auto_files=("$TF_AUTO_CONFIG_FILE")
+        fi
+        if [ ${#backend_files[@]} -lt 1 ] ; then
+            backend_files=("$TF_BACKEND_AUTO_CONFIG_FILE")
+        fi
+        for auto_file in "${auto_files[@]}" ; do
+            while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$auto_file" )
+            while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$auto_file.json" )
+        done
+        for backend_file in "${backend_files[@]}" ; do
+            while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$backend_file" )
+        done
     fi
 }
 # This function takes an array and processes it for arguments from the Terraformsh

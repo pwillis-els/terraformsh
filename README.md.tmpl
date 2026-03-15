@@ -131,8 +131,11 @@
 
 
   Finally, if in any *parent directory* of where you ran Terraformsh, there are
-  files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or `terraform.sh.tfvars`,
-  those will also be loaded automatically (you can disable this with the `-I` option).
+  files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, `tofu.sh.tfvars.json`,
+  `terraform.sh.tfvars`, or `tofu.sh.tfvars`, those will also be loaded automatically
+  (you can disable this with the `-I` option). When both Terraform and OpenTofu are
+  installed, Terraformsh only loads the tfvars file names that match the selected
+  tool; otherwise it loads both Terraform and OpenTofu file names.
 
         $ mkdir -p some/configs/here
         $ cd some
@@ -168,8 +171,11 @@
   with a data source.
 
   You can set the following variables in a config file (any of:
-  `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`),
-  or set them as environment variables before you call Terraformsh:
+  `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`,
+  `tofush.conf`), or set them as environment variables before you call Terraformsh.
+  When both Terraform and OpenTofu are installed, only the config file that matches
+  the selected tool is loaded; otherwise both terraformsh.conf and tofush.conf are
+  loaded if they exist.
 
     DEBUG=1                     # Enable bash tracing
     TERRAFORM=terraform         # The name of the terraform executable
