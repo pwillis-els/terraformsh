@@ -31,10 +31,21 @@ EOTCONF
         echo "$base_name: ERROR: Expected terraform or tofu plan command output."
         return 1
     fi
-    echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
-    echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
-    echo "$output" | grep -q -- "-lock=false" || return 1
-    echo "$output" | grep -q -- "-refresh=false" || return 1
+    has_terraform=0
+    has_tofu=0
+    command -v terraform >/dev/null 2>&1 && has_terraform=1
+    command -v tofu >/dev/null 2>&1 && has_tofu=1
+    if [ $has_terraform -eq 1 ] && [ $has_tofu -eq 1 ] ; then
+        echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
+        echo "$output" | grep -q -- "-lock=false" || return 1
+        echo "$output" | grep -q -- "tofu.sh.tfvars" && return 1
+        echo "$output" | grep -q -- "-refresh=false" && return 1
+    else
+        echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
+        echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
+        echo "$output" | grep -q -- "-lock=false" || return 1
+        echo "$output" | grep -q -- "-refresh=false" || return 1
+    fi
 }
 
 ext_tests="autoloads_tool_tfvars_and_confs"
