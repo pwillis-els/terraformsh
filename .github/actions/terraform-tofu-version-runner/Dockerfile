@@ -3,6 +3,7 @@ ARG TOFUVER
 FROM hashicorp/terraform:$TFVER as terraform-binary
 
 FROM debian:stable-slim
+ARG TOFUVER
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
