@@ -520,7 +520,7 @@ _default_vars () {
     # Exit with an error if we can't find the executable
     if ! command -v "$TERRAFORM" >/dev/null 2>&1; then
         if [ $terraform_user_set -eq 1 ] ; then
-            _stderrlog "Error: 'TERRAFORM' is set to '$TERRAFORM', but it was not found in PATH."
+            _stderrlog "Error: TERRAFORM is set to '$TERRAFORM', but it was not found in PATH."
         else
             _stderrlog "Error: 'TERRAFORM' environment variable is not set, and '$TERRAFORM' binary was not found in PATH."
         fi

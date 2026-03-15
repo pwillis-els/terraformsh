@@ -47,6 +47,14 @@ EOTCONF
         echo "$tofu_output" | grep -q -- "-refresh=false" || return 1
         echo "$tofu_output" | grep -q -- "terraform.sh.tfvars" && return 1
         echo "$tofu_output" | grep -q -- "-lock=false" && return 1
+        ln -s "$testsh_pwd/terraformsh" "$tmp/invalidsh"
+        invalid_output="$("$tmp/invalidsh" -N -D plan 2>&1)"
+        invalid_status=$?
+        if [ $invalid_status -eq 0 ] ; then
+            echo "$base_name: ERROR: Expected failure for invalid script name."
+            return 1
+        fi
+        echo "$invalid_output" | grep -q -- "invoke as terraformsh or tofush" || return 1
     else
         if [ -f terraform.sh.tfvars ] ; then
             echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
