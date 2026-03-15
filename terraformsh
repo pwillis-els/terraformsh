@@ -502,7 +502,7 @@ _default_vars () {
                     TERRAFORM="tofu"
                     ;;
                 *)
-                    _stderrlog "Error: Invalid script name '$SCRIPT_NAME' (expected terraformsh or tofush). Rename the script to terraformsh or tofush, or set TERRAFORM to explicitly choose a tool."
+                    _stderrlog "Error: Invalid script name '$SCRIPT_NAME' (expected terraformsh or tofush when both tools are installed). Rename the script to terraformsh or tofush, or set TERRAFORM to explicitly choose a tool."
                     return 1
                     ;;
             esac

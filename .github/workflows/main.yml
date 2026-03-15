@@ -143,4 +143,4 @@ jobs:
           run: |
               terraform --version
               tofu --version
-              make test-main
+              make
