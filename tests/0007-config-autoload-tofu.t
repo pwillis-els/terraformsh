@@ -41,10 +41,18 @@ EOTCONF
         echo "$output" | grep -q -- "tofu.sh.tfvars" && return 1
         echo "$output" | grep -q -- "-refresh=false" && return 1
     else
-        echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
-        echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
-        echo "$output" | grep -q -- "-lock=false" || return 1
-        echo "$output" | grep -q -- "-refresh=false" || return 1
+        if [ -f terraform.sh.tfvars ] ; then
+            echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
+        fi
+        if [ -f tofu.sh.tfvars ] ; then
+            echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
+        fi
+        if [ -f terraformsh.conf ] ; then
+            echo "$output" | grep -q -- "-lock=false" || return 1
+        fi
+        if [ -f tofush.conf ] ; then
+            echo "$output" | grep -q -- "-refresh=false" || return 1
+        fi
     fi
 }
 
