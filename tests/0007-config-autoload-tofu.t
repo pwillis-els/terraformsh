@@ -65,16 +65,16 @@ EOTCONF
         echo "$invalid_output" | grep -q -- "invoke as terraformsh or tofush" || _fail_with_output "Expected invalid script name guidance." "$invalid_output"
     else
         if [ -f terraform.sh.tfvars ] ; then
-            echo "$output" | grep -q -- "terraform.sh.tfvars" || return 1
+            echo "$output" | grep -q -- "terraform.sh.tfvars" || _fail_with_output "Expected terraform.sh.tfvars in output." "$output"
         fi
         if [ -f tofu.sh.tfvars ] ; then
-            echo "$output" | grep -q -- "tofu.sh.tfvars" || return 1
+            echo "$output" | grep -q -- "tofu.sh.tfvars" || _fail_with_output "Expected tofu.sh.tfvars in output." "$output"
         fi
         if [ -f terraformsh.conf ] ; then
-            echo "$output" | grep -q -- "-lock=false" || return 1
+            echo "$output" | grep -q -- "-lock=false" || _fail_with_output "Expected terraformsh.conf args in output." "$output"
         fi
         if [ -f tofush.conf ] ; then
-            echo "$output" | grep -q -- "-refresh=false" || return 1
+            echo "$output" | grep -q -- "-refresh=false" || _fail_with_output "Expected tofush.conf args in output." "$output"
         fi
     fi
 }
