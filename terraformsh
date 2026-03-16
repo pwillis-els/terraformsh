@@ -6,7 +6,7 @@
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
 VERSION="0.16"
-QUIET_MODE=0 # default to avoid unbound usage before _default_vars runs
+QUIET_MODE=0 # default for early logging with set -u before _default_vars completes
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
