@@ -1,6 +1,6 @@
 ARG TFVER
 ARG TOFUVER
-FROM hashicorp/terraform:$TFVER as terraform-binary
+FROM hashicorp/terraform:$TFVER AS terraform-binary
 
 FROM debian:stable-slim
 ARG TOFUVER
