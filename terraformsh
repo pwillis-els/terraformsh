@@ -639,11 +639,7 @@ _load_conf () {
     local _usedefaultconf=1
     declare -a _tmp_confs=()
     if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        if [ ${#DEFAULT_CONF_FILES[@]} -gt 0 ] ; then
-            _tmp_confs=("${DEFAULT_CONF_FILES[@]}")
-        else
-            _tmp_confs=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "./terraformsh.conf")
-        fi
+        _tmp_confs=("${DEFAULT_CONF_FILES[@]}")
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
         _usedefaultconf=0
         _tmp_confs=("${CONF_FILE[@]}")
