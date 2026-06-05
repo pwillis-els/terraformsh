@@ -8,10 +8,11 @@ _fail_with_output () {
     output="$2"
     echo "$base_name: ERROR: $label"
     echo "$output"
-    return 1
+    _t_failed=1
 }
 
 _t_autoloads_tool_tfvars_and_confs () {
+    _t_failed=0
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
     _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     cd "$tmp"/null-resource-hello-world.tfd || return 1
@@ -77,6 +78,7 @@ EOTCONF
             echo "$output" | grep -q -- "-refresh=false" || _fail_with_output "Expected tofush.conf args in output." "$output"
         fi
     fi
+    return $_t_failed
 }
 
 ext_tests="autoloads_tool_tfvars_and_confs"
