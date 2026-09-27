@@ -809,7 +809,7 @@ _rfindfiles () {
     cwd="$(pwd)"
     while [ ! "$(dirname "$cwd")" = "/" ] ; do
         for f in "$@" ; do
-            for p in $cwd/$f ; do
+            for p in "$cwd"/$f ; do
                 if [ ! -d "$p" ] && [ -e "$p" ] ; then
                     printf "%s\n" "$p"
                 fi
