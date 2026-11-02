@@ -1,13 +1,18 @@
 name: Continuous Integration
 
 on:
-  #push:
+
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
-  test_pull_request:
-    name: Run tests on a pull request
+
+  test_pull_request_terraform:
+
+    name: Run tests with Terraform
     runs-on: ubuntu-latest
 
     strategy:
@@ -24,20 +29,20 @@ jobs:
           - "1.3.10"
           - "1.4.7"
           - "1.5.7"
-          - "1.6.3"
+          - "1.6.6"
+          - "1.7.5"
+          - "1.8.5"
+          - "1.9.8"
+          - "1.10.5"
+          - "1.11.4"
+          - "1.12.2"
+          - "1.13.5"
+          - "1.14.4"
 
     steps:
 
       - name: Checkout git
-        uses: actions/checkout@v2
-
-      #- name: Build container
-      #  uses: ./.github/actions/terraform-version-runner
-      #  with:
-      #    terraform-version: "${{ matrix.version }}"
-      #  env:
-      #    DEBUG: 1
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@v4.2.0
 
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
@@ -52,10 +57,93 @@ jobs:
           build-args: "TFVER=${{ matrix.version }}"
 
       - name: Run test suite
-        uses: addnab/docker-run-action@v3
+        uses: maus007/docker-run-action-fork@v1
         with:
           image: "local-terraform:${{ matrix.version }}"
           options: "-v ${{ github.workspace }}:/work -w /work"
           run: |
               terraform --version
+              make
+
+  test_pull_request_opentofu:
+
+    name: Run tests with OpenTofu
+    runs-on: ubuntu-latest
+    needs: test_pull_request_terraform
+
+    strategy:
+      matrix:
+        version:
+          - "1.7.10"
+          - "1.8.11"
+          - "1.9.3"
+          - "1.10.8"
+          - "1.11.4"
+
+    steps:
+
+      - name: Checkout git
+        uses: actions/checkout@v4.2.0
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ".github/actions/opentofu-version-runner/Dockerfile"
+          tags: "local-opentofu:${{ matrix.version }}"
+          load: true
+          cache-from: "type=gha"
+          cache-to: "type=gha,mode=max"
+          push: false
+          build-args: "VERSION=${{ matrix.version }}"
+
+      - name: Run test suite
+        uses: maus007/docker-run-action-fork@v1
+        with:
+          image: "local-opentofu:${{ matrix.version }}"
+          options: "-v ${{ github.workspace }}:/work -w /work"
+          run: |
+              tofu --version
+              TERRAFORM=tofu make
+
+  test_pull_request_dual_tool:
+
+    name: Run tests with Terraform and OpenTofu
+    runs-on: ubuntu-latest
+    needs: test_pull_request_opentofu
+
+    strategy:
+      matrix:
+        terraform_version:
+          - "1.5.7"
+        tofu_version:
+          - "1.8.11"
+
+    steps:
+
+      - name: Checkout git
+        uses: actions/checkout@v4.2.0
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ".github/actions/terraform-tofu-version-runner/Dockerfile"
+          tags: "local-terraform-tofu:${{ matrix.terraform_version }}-${{ matrix.tofu_version }}"
+          load: true
+          cache-from: "type=gha"
+          cache-to: "type=gha,mode=max"
+          push: false
+          build-args: |
+            TFVER=${{ matrix.terraform_version }}
+            TOFUVER=${{ matrix.tofu_version }}
+
+      - name: Run test suite
+        uses: maus007/docker-run-action-fork@v1
+        with:
+          image: "local-terraform-tofu:${{ matrix.terraform_version }}-${{ matrix.tofu_version }}"
+          options: "-v ${{ github.workspace }}:/work -w /work"
+          run: |
+              terraform --version
+              tofu --version
               make

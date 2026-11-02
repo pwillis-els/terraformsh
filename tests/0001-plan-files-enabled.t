@@ -7,7 +7,8 @@ set -u
 _t_plan_files_enabled () {
     pwd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
-    cd "$tmp"/null-resource-hello-world.tfd
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
+    cd "$tmp"/null-resource-hello-world.tfd || return 1
     if      $testsh_pwd/terraformsh plan
     then
 
@@ -24,6 +25,10 @@ _t_plan_files_enabled () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
@@ -31,8 +36,9 @@ _t_plan_files_enabled () {
 _t_plan_files_enabled_cd_dir () {
     pwd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     mkdir -p "$tmp/rundir"
-    cd "$tmp"/rundir
+    cd "$tmp"/rundir || return 1
     if      $testsh_pwd/terraformsh -C "$tmp/null-resource-hello-world.tfd" plan
     then
 
@@ -49,6 +55,10 @@ _t_plan_files_enabled_cd_dir () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la "$tmp/null-resource-hello-world.tfd"
+        return 1
     fi
 }
 

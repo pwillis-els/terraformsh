@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.15] - 2025-02-11
+
+### Added
+ - Test running workflow on multiple versions of terraform @pwillis-els (#28)
+
+### Fixed
+ - Fix 'terraformsh apply' with no varfiles @peterwwillis (#31)
+ - Fix/apply tfvars (from PR #27) @pwillis-els (#29)
+
+---
+
 ## [v0.14] - 2023-08-12
 
 ### Added

@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# terraformsh - Bash wrapper around Terraform
+# terraformsh - Bash wrapper around Terraform and OpenTofu
+# https://github.com/pwillis-els/terraformsh
 # Copyright (C) 2020-2021 Peter Willis
 
 set -e -u -o pipefail
 [ "${DEBUG:-0}" = "1" ] && set -x       # set DEBUG=1 to enable tracing
-VERSION="0.15"
+VERSION="0.16"
+QUIET_MODE=0 # default for early logging with set -u before _default_vars completes
 
 # ---------------------------------------------------------------------------------------- #
 _usage () {
     cat <<EOTUSAGE
-    terraformsh v$VERSION
+    $(basename "$0") v$VERSION - Bash wrapper around Terraform and OpenTofu
     Usage: $0 [OPTIONS] [TFVARS] COMMAND [..]
 
 # Options
@@ -17,22 +19,23 @@ _usage () {
   Pass these OPTIONS before any others (see examples); do not pass them after
   TFVARS or COMMANDs.
 
-    -f FILE         A file passed to Terraform's -var-file option.
+    -f FILE         A file passed to $TERRAFORM_NICE_NAME's -var-file option.
                       ( config: VARFILES= )
-    -b FILE         A file passed to Terraform's -backend-config option.
+    -b FILE         A file passed to $TERRAFORM_NICE_NAME's -backend-config option.
                       ( config: BACKENDVARFILES= )
     -C DIR          Change to directory DIR.
                       ( config: CD_DIR= )
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
+                    'tofu.sh.tfvars', 'terraform.sh.tfvars.json',
+                    'tofu.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
                       ( config: USE_PLANFILE=0 )
-    -D              Don't run 'dependency' commands (e.g. don't run "terraform
-                    init" before "terraform apply").
+    -D              Don't run 'dependency' commands (e.g. don't run "$TERRAFORM_SHORT_NAME
+                    init" before "$TERRAFORM_SHORT_NAME apply").
                       ( config: NO_DEP_CMDS=1 )
     -N              Dry-run mode (don't execute anything).
                       ( config: DRYRUN=1 )
@@ -40,33 +43,35 @@ _usage () {
                       ( config: NO_CLEANUP_TMP=1 )
     -v              Verbose mode.
                       ( config: DEBUG=1 )
+    -q              Quiet mode.
+                      ( config: QUIET_MODE=1 )
     -h              This help screen.
 
 # Commands
 
-  The following are Terraform commands that terraformsh provides wrappers for
-  (there's some Terraformsh-specific logic behind the scenes). Other Terraform
-  commands not listed here are passed through to Terraform verbatim.
+  The following are $TERRAFORM_NICE_NAME commands that terraformsh provides wrappers for
+  (there's some Terraformsh-specific logic behind the scenes). Other $TERRAFORM_NICE_NAME
+  commands not listed here are passed through to $TERRAFORM_NICE_NAME verbatim.
 
-    plan              Run init, get, validate, \`terraform plan @VARFILE_ARG -out \$TF_PLANFILE\`
-    apply             Run init, get, validate, \`terraform apply \$TF_PLANFILE\`
-    plan_destroy      Run init, get, validate, \`terraform plan -destroy -out=\$TF_DESTROY_PLANFILE\`
-    destroy           Run init, get, validate, \`terraform apply \$TF_DESTROY_PLANFILE\`
-    refresh           Run init, \`terraform refresh\`
-    validate          Run init, get, \`terraform validate\`
-    init              Run clean_modules, \`terraform init @BACKENDVARFILE_ARG\`
-    get               Run init, \`terraform get [..]\`
-    show              Run init, \`terraform show [..]\`
-    import            Run init, \`terraform import [..]\`
-    state             Run init, \`terraform state [..]\`
-    taint             Run init, \`terraform taint [..]\`
-    untaint           Run init, \`terraform untaint [..]\`
-    output            Run init, refresh, \`terraform output [..]\`
-    console           Run init, \`terraform console [..]\`
-    workspace         Run init, \`terraform workspace [..]\`
-    force-unlock      Run init, \`terraform force-unlock [..]\`
-    0.12upgrade       Run init, \`terraform 0.12upgrade [..]\`
-    0.13upgrade       Run init, \`terraform 0.13upgrade [..]\`
+    plan              Run init, get, validate, \`$TERRAFORM_SHORT_NAME plan @VARFILE_ARG -out \$TF_PLANFILE\`
+    apply             Run init, get, validate, \`$TERRAFORM_SHORT_NAME apply \$TF_PLANFILE\`
+    plan_destroy      Run init, get, validate, \`$TERRAFORM_SHORT_NAME plan -destroy -out=\$TF_DESTROY_PLANFILE\`
+    destroy           Run init, get, validate, \`$TERRAFORM_SHORT_NAME apply \$TF_DESTROY_PLANFILE\`
+    refresh           Run init, \`$TERRAFORM_SHORT_NAME refresh\`
+    validate          Run init, get, \`$TERRAFORM_SHORT_NAME validate\`
+    init              Run clean_modules, \`$TERRAFORM_SHORT_NAME init @BACKENDVARFILE_ARG\`
+    get               Run init, \`$TERRAFORM_SHORT_NAME get [..]\`
+    show              Run init, \`$TERRAFORM_SHORT_NAME show [..]\`
+    import            Run init, \`$TERRAFORM_SHORT_NAME import [..]\`
+    state             Run init, \`$TERRAFORM_SHORT_NAME state [..]\`
+    taint             Run init, \`$TERRAFORM_SHORT_NAME taint [..]\`
+    untaint           Run init, \`$TERRAFORM_SHORT_NAME untaint [..]\`
+    output            Run init, refresh, \`$TERRAFORM_SHORT_NAME output [..]\`
+    console           Run init, \`$TERRAFORM_SHORT_NAME console [..]\`
+    workspace         Run init, \`$TERRAFORM_SHORT_NAME workspace [..]\`
+    force-unlock      Run init, \`$TERRAFORM_SHORT_NAME force-unlock [..]\`
+    0.12upgrade       Run init, \`$TERRAFORM_SHORT_NAME 0.12upgrade [..]\`
+    0.13upgrade       Run init, \`$TERRAFORM_SHORT_NAME 0.13upgrade [..]\`
 
   The following commands are specific to terraformsh:
 
@@ -75,16 +80,17 @@ _usage () {
     clean_modules     Run \`rm -v -rf .terraform/modules/*\`
     approve           Prompts the user to approve the next step, or the program will exit with an error.
     aws_bootstrap     Looks for 'bucket' and 'dynamodb_table' in your '-b' file options.
-                      If found, creates the bucket and table and initializes your Terraform state with them.
+                      If found, creates the bucket and table and initializes your $TERRAFORM_NICE_NAME state with them.
     revgrep           Run 'grep' on files in all parent directories
     env               Run 'env' command with optional arguments
 
-All arguments after a COMMAND are evaluated for whether they match a Terraform
+All arguments after a COMMAND are evaluated for whether they match a $TERRAFORM_NICE_NAME
 or Terraformsh command; if they don't, they are assumed to be options and are
 passed to the first recognized command that precedes them.
 EOTUSAGE
     exit 1
 }
+
 # Commands collected from versions 0.11,0.12,0.13,0.14,0.15,1.0,1.1
 declare -a TF_COMMANDS=(0.12checklist 0.12upgrade 0.13upgrade apply console debug destroy env fmt force-unlock get graph import init login logout output plan providers push refresh show state taint test untaint validate version workspace)
 declare -a TF_CMDS_debug=(json2dot)
@@ -106,13 +112,25 @@ _cmd_plan () {
 }
 _cmd_apply () {
     _final_vars
-    local errored=0 ret
+    local errored=0 ret arg _use_varfiles=1
     [ "${NO_DEP_CMDS:-0}" = "0" ] && _cmd_init
     declare -a args=("$@")
-    local varfile_arg=("")
+    local varfile_arg=()
+    # Detect if non-option file arguments were passed. If they were,
+    # disable the passing of -var-file arguments as apply can't accept them
+    # if it's accepting a plan file too.
+    if [ ${#args[@]} -gt 0 ] ; then
+        for arg in "${args[@]}" ; do
+            if [ ! "${arg[0]:0:1}" = "-" ] && [ -f "$arg" ] ; then
+                _log "Warning: detected a plan-file passed as an option; not passing varfiles"
+                _use_varfiles=0
+                break
+            fi
+        done
+    fi
     if [ $USE_PLANFILE -eq 1 ]; then
       args+=("$TF_PLANFILE") # Pass plan file after '$@'
-    else
+    elif [ ${#VARFILE_ARG[@]} -gt 0 ] && [ $_use_varfiles -eq 1 ] ; then
       varfile_arg=("${VARFILE_ARG[@]}") # only if planfile disabled
     fi
     [ ! -e errored.tfstate ] || errored=1 # Ignore pre-existing errored.tfstate
@@ -121,11 +139,11 @@ _cmd_apply () {
     [ $ret -eq 0 ] || errored=$ret
     if [ $errored -ne 0 ] ; then
         if [ "${PUSH_ERRORED_TFSTATE:-1}" -eq 1 ] && [ $errored -eq 0 ] && [ -e errored.tfstate ] ; then
-            echo "$0: Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
+            _log "Warning: found 'errored.tfstate' after running 'apply'; attempting to push unapplied state file..."
             if _cmd_state push errored.tfstate ; then
                 rm -f errored.tfstate
             else
-                _errexit "Error: could not push errored.tfstate!"
+                _errexit "could not push errored.tfstate!"
             fi
         fi
         return $errored
@@ -287,9 +305,9 @@ _cmd_shell () {
     ret=0
     if [ "${NO_DEP_CMDS:-0}" = "0" ] && ! _cmd_get ; then
         ret=$?
-        echo "$0: Previous command failed!"
+        _log "Previous command failed!"
     fi
-    echo "$0: Dropping into shell; see TF_DATA_DIR variable for temp files"
+    _log "Dropping into shell; see TF_DATA_DIR variable for temp files"
     _runcmd bash -i -l
     return $?
 }
@@ -307,10 +325,11 @@ _cmd_clean () {
 }
 _cmd_approve () {
     local approve
-    echo ""
+    [ $QUIET_MODE -eq 1 ] || echo ""
     read -p "$0: Are you SURE you want to continue with the next commands? Type 'YES' to continue: " approve
     if [ "$approve" = "YES" ] ; then
-        echo "$0: Approval given; continuing!" ; echo ""
+        _log "Approval given; continuing!"
+        [ $QUIET_MODE -eq 1 ] || echo ""
     else
         _errexit "Approval not given; exiting!"
     fi
@@ -318,11 +337,10 @@ _cmd_approve () {
 _cmd_revgrep () {
     [ $# -gt 0 ] || _errexit "Usage: revgrep GREP_OPTIONS [...]"
     (
-        echo "+ cd $TERRAFORM_PWD" 1>&2
+        [ $QUIET_MODE -eq 1 ] || echo "+ cd $TERRAFORM_PWD" 1>&2
         cd "$TERRAFORM_PWD" # search original directory hierarchy, not the code one
         while read -r LINE ; do
             if [ -e "$LINE" ] ; then
-                #echo "+ grep" "$@" " " "$LINE" 1>&2
                 grep "$@" "$LINE" || true
             fi
         done < <( _rfindfiles "*" "..?*" )
@@ -349,10 +367,10 @@ _cmd_aws_bootstrap () {
     done
 
     if [ -z "${TF_BACKEND_BUCKET:-}" ] || [ -z "${TF_BACKEND_TABLE:-}" ] ; then
-        _errexit "Error: Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
+        _errexit "Make sure 'bucket' and 'dynamodb_table' are set in your backend var files"
     fi
 
-    # Create a local terraform backend
+    # Create a local terraform backend - OpenTofu still uses the 'terraform' syntax for this block
     printf "terraform {\n\tbackend local {}\n}\n" > terraformsh-backend.tf
 
     # First remove any existing previous local state
@@ -365,20 +383,20 @@ _cmd_aws_bootstrap () {
         --bucket "${TF_BACKEND_BUCKET}" --query LocationConstraint --output text \
         || true )"
     if [ -n "$bucket_region" ] ; then
-        echo "$0: Info: importing existing S3 bucket '$TF_BACKEND_BUCKET' ..." 1>&2
+        _stderrlog "Info: importing existing S3 bucket '$TF_BACKEND_BUCKET' ..."
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_s3_bucket.terraform_state "$TF_BACKEND_BUCKET"
     else
-        echo "$0: Info: Did not find existing S3 bucket '$TF_BACKEND_BUCKET'; creating..." 1>&2
+        _stderrlog "Info: Did not find existing S3 bucket '$TF_BACKEND_BUCKET'; creating..."
     fi
 
     # Attempt to import dynamodb table if it exists
     # TODO: replace 'jq' here with a --query in the AWS CLI
     DYNAMODB_TABLE="$( aws dynamodb list-tables | jq -re "select(.TableNames | index(\"$TF_BACKEND_TABLE\")) | .TableNames[]" || true )"
     if [ -n "$DYNAMODB_TABLE" ] ; then
-        echo "$0: Info: importing existing DynamoDB table '$TF_BACKEND_TABLE' ..." 1>&2
+        _stderrlog "Info: importing existing DynamoDB table '$TF_BACKEND_TABLE' ..."
         _runcmd "$TERRAFORM" import "${IMPORT_ARGS[@]}" "${VARFILE_ARG[@]}" aws_dynamodb_table.terraform_lock "$TF_BACKEND_TABLE" || true
     else
-        echo "$0: Info: Did not find backend table '$TF_BACKEND_TABLE'; creating..." 1>&2
+        _stderrlog "Info: Did not find backend table '$TF_BACKEND_TABLE'; creating..."
     fi
 
     # Plan & Apply to create the dynamodb table and s3 bucket
@@ -388,10 +406,10 @@ _cmd_aws_bootstrap () {
         -out "$TF_BOOTSTRAP_PLANFILE"
     _runcmd "$TERRAFORM" apply -input=false "$TF_BOOTSTRAP_PLANFILE"
 
-    # Create an s3 terraform backend
+    # Create an s3 terraform backend - OpenTofu still uses the 'terraform' syntax for this block
     printf "terraform {\n\tbackend s3 {}\n}\n" > terraformsh-backend.tf
 
-    echo "$0: Sleeping 60 seconds before querying bucket again ..." 1>&2
+    _stderrlog "Sleeping 60 seconds before querying bucket again ..."
     sleep 60
 
     _runcmd "$TERRAFORM" init "${INIT_ARGS[@]}" "${BACKENDVARFILE_ARG[@]}"
@@ -399,10 +417,10 @@ _cmd_aws_bootstrap () {
 
 _cleanup_tmp () {
     if [ "${NO_CLEANUP_TMP_ON_ERROR:-0}" = "1" ] ; then
-        echo "$0: Error detected; not removing '${TF_TMPDIR:-}'"
+        _log "Error detected; not removing '${TF_TMPDIR:-}'"
     else
         if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
-            echo "$0: Not removing temporary TF_DATA_DIR '${TF_TMPDIR:-}'"
+            _log "Not removing temporary TF_DATA_DIR '${TF_TMPDIR:-}'"
         elif [ -n "${TF_TMPDIR:-}" ] ; then
             rm -rf "$TF_TMPDIR"
         fi
@@ -410,9 +428,9 @@ _cleanup_tmp () {
 }
 _tf_ver () {
     local tf_ver
-    tf_ver="$($TERRAFORM --version | grep '^Terraform v' | cut -d 'v' -f 2)"
-    if [ $? -ne 0 ] ; then
-        echo "$0: Error: 'terraform --version' failed?" 1>&2
+    tf_ver="$($TERRAFORM --version | grep -E "^Terraform v|^OpenTofu v" | cut -d 'v' -f 2)"
+    if [ $? -ne 0 ] || [ -z "$tf_ver" ] ; then
+        _stderrlog "Error: '$TERRAFORM --version' failed?"
         return 1
     fi
     IFS=. read -r -a tfver_a <<< "${tf_ver}"
@@ -430,7 +448,7 @@ _tf_set_datadir () {
     fi
     if [ -z "${TF_DATA_DIR:-}" ] ; then
         if [ -n "${TF_TMPDIR:-}" ] ; then
-            echo "$0: Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a 'terraform shell' session? You might want to exit your shell before running terraformsh again"
+            _log "Warning: A 'TF_TMPDIR' environment variable is already set! Are you running inside a '$TERRAFORM_SHORT_NAME shell' session? You might want to exit your shell before running terraformsh again"
         fi
         _cleanup_tmp
         export TF_TMPDIR="${TMPDIR:-/tmp}/tfsh.$TF_DD_UNIQUE_NAME"
@@ -448,15 +466,71 @@ _default_vars () {
 
     # Override these variables to change the config files that are automatically loaded
     # when found in any parent directories (disable with the '-I' option).
+    local tf_auto_config_default=0
+    if [ -z "${TF_AUTO_CONFIG_FILE+x}" ] ; then
+        TF_AUTO_CONFIG_FILE="terraform.sh.tfvars"
+        tf_auto_config_default=1
+    fi
     TF_BACKEND_AUTO_CONFIG_FILE="${TF_BACKEND_AUTO_CONFIG_FILE:-backend.sh.tfvars}"
-    TF_AUTO_CONFIG_FILE="${TF_AUTO_CONFIG_FILE:-terraform.sh.tfvars}"
 
     # This enables the above functionality by default ('-I' sets this to 0)
     INHERIT_TFFILES="${INHERIT_TFFILES:-1}"
 
+    SCRIPT_NAME="$(basename "$0")" # Get the terraformsh script name (symlink or real)
+    TERRAFORM_TOOLS_EXIST="none"
+    local has_terraform=0 has_tofu=0
+    command -v terraform >/dev/null 2>&1 && has_terraform=1
+    command -v tofu >/dev/null 2>&1 && has_tofu=1
+    if [ $has_terraform -eq 1 ] && [ $has_tofu -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="both"
+    elif [ $has_terraform -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="terraform"
+    elif [ $has_tofu -eq 1 ] ; then
+        TERRAFORM_TOOLS_EXIST="tofu"
+    fi
+
+    local terraform_user_set=0
+    # If TERRAFORM is not provided, we will try to auto-detect the executable
+    if [ -n "${TERRAFORM:-}" ] ; then
+        terraform_user_set=1
+    else
+        if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+            case "$SCRIPT_NAME" in
+                terraformsh)
+                    TERRAFORM="terraform"
+                    ;;
+                tofush)
+                    TERRAFORM="tofu"
+                    ;;
+                *)
+                    _stderrlog "Error: When both terraform and tofu are installed, invoke as terraformsh or tofush (e.g., via symlink)."
+                    _stderrlog "Error: Current name: '$SCRIPT_NAME'. Example: ln -s terraformsh tofush"
+                    _stderrlog "Error: Or set TERRAFORM=terraform or TERRAFORM=tofu to explicitly choose a tool."
+                    return 1
+                    ;;
+            esac
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+            TERRAFORM="terraform"
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+            TERRAFORM="tofu"
+        else
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and neither terraform nor tofu was found in PATH."
+            return 1
+        fi
+    fi
+    # Exit with an error if we can't find the executable
+    if ! command -v "$TERRAFORM" >/dev/null 2>&1; then
+        if [ $terraform_user_set -eq 1 ] ; then
+            _stderrlog "Error: TERRAFORM is set to '$TERRAFORM', but it was not found in PATH."
+        else
+            _stderrlog "Error: 'TERRAFORM' environment variable is not set, and '$TERRAFORM' binary was not found in PATH."
+        fi
+        return 1
+    fi
+
     CD_DIR=""
+    QUIET_MODE=0
     USE_PLANFILE="${USE_PLANFILE:-1}"
-    TERRAFORM="${TERRAFORM:-terraform}" # the terraform executable
     PLAN_ARGS=("-input=false")
     APPLY_ARGS=("-input=false")
     PLANDESTROY_ARGS=("-input=false")
@@ -476,6 +550,54 @@ _default_vars () {
     UNTAINT_ARGS=()
     FORCEUNLOCK_ARGS=("-force")
     SHOW_ARGS=()
+
+    # Detect the name of the Terraform/OpenTofu binary
+    if [ -z "${TERRAFORM_NICE_NAME:-}" ] || [ -z "${TERRAFORM_SHORT_NAME:-}" ] ; then
+        TERRAFORM_NICE_NAME="$($TERRAFORM --version | grep -E '^Terraform v|^OpenTofu v' | cut -d ' ' -f 1)"
+        if [ $? -ne 0 ] || [ -z "$TERRAFORM_NICE_NAME" ] ; then
+            _stderrlog "Error: '$TERRAFORM --version' failed?"
+            return 1
+        fi
+        case "$TERRAFORM_NICE_NAME" in
+            Terraform) TERRAFORM_SHORT_NAME="terraform" ;;
+            OpenTofu) TERRAFORM_SHORT_NAME="tofu" ;;
+        esac
+    fi
+
+    TF_AUTO_CONFIG_FILES=()
+    if [ $tf_auto_config_default -eq 1 ] ; then
+        if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+            if [ "$TERRAFORM_SHORT_NAME" = "tofu" ] ; then
+                TF_AUTO_CONFIG_FILES=("tofu.sh.tfvars")
+            else
+                TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars")
+            fi
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+            TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars" "tofu.sh.tfvars")
+        elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+            TF_AUTO_CONFIG_FILES=("tofu.sh.tfvars" "terraform.sh.tfvars")
+        else
+            TF_AUTO_CONFIG_FILES=("terraform.sh.tfvars")
+        fi
+    else
+        TF_AUTO_CONFIG_FILES=("$TF_AUTO_CONFIG_FILE")
+    fi
+
+    TF_BACKEND_AUTO_CONFIG_FILES=("$TF_BACKEND_AUTO_CONFIG_FILE")
+    DEFAULT_CONF_FILES=("/etc/terraformsh" ~/.terraformshrc "./.terraformshrc")
+    if [ "$TERRAFORM_TOOLS_EXIST" = "both" ] ; then
+        if [ "$TERRAFORM_SHORT_NAME" = "tofu" ] ; then
+            DEFAULT_CONF_FILES+=("./tofush.conf")
+        else
+            DEFAULT_CONF_FILES+=("./terraformsh.conf")
+        fi
+    elif [ "$TERRAFORM_TOOLS_EXIST" = "terraform" ] ; then
+        DEFAULT_CONF_FILES+=("./tofush.conf" "./terraformsh.conf")
+    elif [ "$TERRAFORM_TOOLS_EXIST" = "tofu" ] ; then
+        DEFAULT_CONF_FILES+=("./terraformsh.conf" "./tofush.conf")
+    else
+        DEFAULT_CONF_FILES+=("./terraformsh.conf")
+    fi
 
     TERRAFORM_PWD="$(pwd)"
 }
@@ -504,8 +626,8 @@ _final_vars () {
 
     if [ "${_final_vars_set}" = "0" ] ; then
         if [ ${#BACKENDVARFILE_ARG[@]} -lt 1 ] ; then
-            echo "$0: Warning: No -b option passed! Potentially using only local state." 1>&2
-            echo "" 1>&2
+            _stderrlog "Warning: No -b option passed! Potentially using only local state."
+            [ $QUIET_MODE -eq 1 ] || echo "" 1>&2
             sleep 1
         else
             INIT_ARGS+=("${BACKENDVARFILE_ARG[@]}")
@@ -514,26 +636,51 @@ _final_vars () {
     _final_vars_set=1
 }
 _load_conf () {
-    # Don't load the default configs if one was passed via '-c'
+    local _usedefaultconf=1
+    declare -a _tmp_confs=()
     if [ ${#CONF_FILE[@]} -lt 1 ] ; then
-        for f in "/etc/terraformsh" ~/.terraformshrc "./.terraformshrc" "terraformsh.conf" ; do
-            [ -e "$f" ] && . "$(_readlinkf "$f")"
-        done
-    # If '-c' was passed, let the user pass only the configs they want to load.
+        _tmp_confs=("${DEFAULT_CONF_FILES[@]}")
     elif [ ${#CONF_FILE[@]} -gt 0 ] ; then
-        for conf in "${CONF_FILE[@]}" ; do
-            # NOTE: This is not a replacement for 'readlink -f'; if you want
-            # that behavior, pass the real file path yourself, don't rely on this.
-            . "$(_readlinkf "$conf")"
-        done
+        _usedefaultconf=0
+        _tmp_confs=("${CONF_FILE[@]}")
     fi
+    for conf in "${_tmp_confs[@]}" ; do
+        if [ -d "$conf" ] ; then
+            _errexit "Config file '$conf' is a directory! Exiting"
+        elif [ "$_usedefaultconf" -eq 0 ] && [ ! -e "$conf" ] ; then
+            # If conf file was explicitly specified, it must exist and be readable
+            _errexit "Error: could not find conf file '$conf'! Exiting"
+        elif [ "$_usedefaultconf" -eq 1 ] && [ ! -e "$conf" ] ; then
+            # If using default conf files, just skip nonexistent ones
+            continue
+        fi
+        # If conf file exists, it must be readable
+        if [ ! -r "$conf" ] ; then
+            _errexit "Error: could not read conf file '$conf'! Exiting"
+        fi
+        # NOTE: This is not a replacement for 'readlink -f'; if you want
+        # that behavior, pass the real file path yourself, don't rely on this.
+        . "$(_readlinkf "$conf")"
+    done
     return 0
 }
 _load_parent_tffiles () {
     if [ "${INHERIT_TFFILES:-0}" = "1" ] ; then
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE" )
-        while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$TF_AUTO_CONFIG_FILE.json" )
-        while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$TF_BACKEND_AUTO_CONFIG_FILE" )
+        declare -a auto_files=("${TF_AUTO_CONFIG_FILES[@]}")
+        declare -a backend_files=("${TF_BACKEND_AUTO_CONFIG_FILES[@]}")
+        if [ ${#auto_files[@]} -lt 1 ] ; then
+            auto_files=("$TF_AUTO_CONFIG_FILE")
+        fi
+        if [ ${#backend_files[@]} -lt 1 ] ; then
+            backend_files=("$TF_BACKEND_AUTO_CONFIG_FILE")
+        fi
+        for auto_file in "${auto_files[@]}" ; do
+            while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$auto_file" )
+            while read -r LINE ; do VARFILES=("$LINE" "${VARFILES[@]}") ; done < <( _rfindfiles "$auto_file.json" )
+        done
+        for backend_file in "${backend_files[@]}" ; do
+            while read -r LINE ; do BACKENDVARFILES=("$LINE" "${BACKENDVARFILES[@]}") ; done < <( _rfindfiles "$backend_file" )
+        done
     fi
 }
 # This function takes an array and processes it for arguments from the Terraformsh
@@ -565,7 +712,6 @@ _process_cmds () {
     cpi=${#CMD_PAIRS[@]} # Save this for later, in case this array was already
     p=$cpi               # populated before this function.
     prev='' prevcmd=''
-    #for (( i = s; i < (${#cmds[@]}-s) ; i++ )) ; do
     for cmd in "${cmds[@]:$s}" ; do
         local valid_cmd=0
         for possiblecmd in "${TF_COMMANDS[@]}" "${WRAPPER_COMMANDS[@]}" ; do
@@ -584,16 +730,16 @@ _process_cmds () {
         done
         if [ $valid_cmd -eq 0 ] || [ $valid_cmd -eq 2 ] ; then
             if [ $found_cmds -lt 1 ] ; then
-                _errexit "Error: Found non-command '$cmd' before a command was found"
+                _errexit "Found non-command '$cmd' before a command was found"
             fi
             [ $valid_cmd -eq 0 ] && \
-                echo "$0: Warning: '$cmd' is not a valid command; passing as an option instead" 1>&2
+                _stderrlog "Warning: '$cmd' is not a valid command; passing as an option instead"
             [ $valid_cmd -eq 2 ] && \
-                echo "$0: Warning: '$cmd' is a subcommand of previous command '$prevcmd'; passing as an option" 1>&2
+                _stderrlog "Warning: '$cmd' is a subcommand of previous command '$prevcmd'; passing as an option"
             CMD_PAIRS[$p]+=" $(printf "%q" "$cmd")" # The space before \$( is intentional
             prev="opt"
         else
-            echo "$0: Info: Found terraform command '$cmd'" 1>&2
+            _stderrlog "Info: Found $TERRAFORM_SHORT_NAME command '$cmd'"
             CMD_PAIRS[$p]="array=($(printf "%q" "$cmd")" # Yes this has a leading '('
             found_cmds=$((found_cmds+1))
             prev="cmd"
@@ -604,7 +750,7 @@ _process_cmds () {
         CMD_PAIRS[$p]+=")"
     done
     if [ $(( ${#cmds[@]} - $s )) -lt 1 ] ; then
-        echo "$0: Error: No COMMAND was specified"; echo ""; _usage
+        _log "Error: No COMMAND was specified"; [ $QUIET_MODE -eq 1 ] || echo ""; _usage
     fi
 }
 _dirchange_old=""
@@ -630,8 +776,8 @@ _mktemp () {
     local _cmd="touch" _template="tmp.XXXXXXXXXX" _new _templatetmp
     while getopts "dp:t:" args ; do
         case $args in
-            p)  _dirprefix="$OPTARG" ;;
             d)  _makedir=1 ;;
+            p)  _dirprefix="$OPTARG" ;;
             t)  _makedir=0 ;;
             *)  _errexit "Please pass correct _mktemp options" ;;
         esac
@@ -663,9 +809,8 @@ _rfindfiles () {
     cwd="$(pwd)"
     while [ ! "$(dirname "$cwd")" = "/" ] ; do
         for f in "$@" ; do
-            for p in $cwd/$f ; do
+            for p in "$cwd"/$f ; do
                 if [ ! -d "$p" ] && [ -e "$p" ] ; then
-                    #echo "file '$f' p '$p'" 1>&2
                     printf "%s\n" "$p"
                 fi
             done
@@ -674,12 +819,12 @@ _rfindfiles () {
     done
 }
 _runcmd () {
-    echo "+ $*" 1>&2
+    [ $QUIET_MODE -eq 1 ] || echo "+ $*" 1>&2
     if [ ! "${DRYRUN:-0}" = "1" ] ; then "$@"; fi
 }
-_errexit () {
-    echo "$0: $*" ; exit 1
-}
+_errexit () {  echo "$0: Error: $*" ; exit 1 ;  }
+_log () {      [ $QUIET_MODE -eq 1 ] || printf "%s: %s\n" "$0" "$*" ;  }
+_stderrlog () {   _log "$@" 1>&2 ;  }
 
 # ---------------------------------------------------------------------------------------- #
 # ------------------           parse cmdline options           --------------------------- #
@@ -694,7 +839,7 @@ declare -a CMDS=() CMD_PAIRS=() CONF_FILE=()
 
 _default_vars
 
-while getopts "f:b:C:c:E:IPDNnhv" args ; do
+while getopts "f:b:C:c:E:IPDNnhqv" args ; do
     case $args in
         f)  VARFILES+=("$(_readlinkf "$OPTARG")") ;;
         b)  BACKENDVARFILES+=("$(_readlinkf "$OPTARG")") ;;
@@ -707,9 +852,10 @@ while getopts "f:b:C:c:E:IPDNnhv" args ; do
         N)  DRYRUN=1 ;;
         n)  NO_CLEANUP_TMP=1 ;;
         h)  SHOW_HELP=1 ;;
+        q)  QUIET_MODE=1 ;;
         v)  export DEBUG=1 ;;
         *)
-            _errexit "Error: unknown option $args" ;;
+            _errexit "unknown option $args" ;;
     esac
 done
 shift $(($OPTIND-1))
@@ -732,7 +878,7 @@ _pre_dirchange_vars
 declare -a array
 for pair in "${CMD_PAIRS[@]}" ; do
     eval "$pair"
-    name="${array[0]}" # array is defined in 'eval $pair'
+    name="${array[0]}" # 'array' is defined in 'eval $pair'
     if command -v _cmd_"$name" >/dev/null ; then
         _cmd_"$name" "${array[@]:1}"
     else

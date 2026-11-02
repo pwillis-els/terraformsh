@@ -9,6 +9,7 @@ _t_plan_files_disabled () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
     cd "$tmp"/null-resource-hello-world.tfd
 
     if      $testsh_pwd/terraformsh -P plan
@@ -27,6 +28,10 @@ _t_plan_files_disabled () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
@@ -36,12 +41,13 @@ _t_plan_files_disabled_cd_dir () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
 
     rm -rf "$tmp"/rundir
     mkdir -p "$tmp/rundir"
-    cd "$tmp"/rundir
+    cd "$tmp"/rundir || return 1
 
-    if      $testsh_pwd/terraformsh -c "$tmp/null-resource-hello-world.tfd" -P plan
+    if      $testsh_pwd/terraformsh -C "$tmp/null-resource-hello-world.tfd" -P plan
     then
 
         TERRAFORM_PWD="$(pwd)"
@@ -57,6 +63,10 @@ _t_plan_files_disabled_cd_dir () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la "$tmp/null-resource-hello-world.tfd"
+        return 1
     fi
 }
 
@@ -70,11 +80,12 @@ _t_plan_files_disabled_destroy () {
 
     rm -rf "$tmp"/null-resource-hello-world.tfd
     cp -a "$testsh_pwd/tests/null-resource-hello-world.tfd" "$tmp/"
-    cd "$tmp"/null-resource-hello-world.tfd
+    _check_and_delete_provider_files "$tmp/null-resource-hello-world.tfd" "$TF_VER"
+    cd "$tmp"/null-resource-hello-world.tfd || return 1
 
     set -e
 
-    if     $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy 2>&1 | tee test.log
+    if      $testsh_pwd/terraformsh -P -E "DESTROY_ARGS+=(-auto-approve)" destroy 2>&1 | tee test.log
     then
 
         # Check for 'apply'
@@ -96,6 +107,10 @@ _t_plan_files_disabled_destroy () {
             ls -la
             return 1
         fi
+    else
+        echo "$base_name: ERROR: terraformsh returned error!"
+        ls -la
+        return 1
     fi
 }
 
@@ -109,7 +124,8 @@ _t_plan_files_disabled_apply_tfvars () {
 
     rm -rf "$tmp"/local-file-hello-world.tfd
     cp -a "$testsh_pwd/tests/local-file-hello-world.tfd" "$tmp/"
-    cd "$tmp"/local-file-hello-world.tfd
+    _check_and_delete_provider_files "$tmp/local-file-hello-world.tfd" "$TF_VER"
+    cd "$tmp"/local-file-hello-world.tfd || return 1
 
     cat >terraform.sh.tfvars <<EOTFFILE1
 insert-value = "(this is from the tfvars file)"

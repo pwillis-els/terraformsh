@@ -1,9 +1,25 @@
-# Requirements
+# terraformsh
+
+## Requirements
+
  - Bash (v3+)
- - Terraform
+ - Terraform or OpenTofu
  - AWS CLI (only for aws_bootstrap command)
 
-# About
+## Installation
+
+  You can copy this script to any 'bin/' directory in your PATH.
+
+  You can also pin versions of this script using `asdf`:
+  1. Install ASDF (https://asdf-vm.com/guide/getting-started.html)
+  2. Configure/load ASDF in your shell
+  3. Add the terraformsh plugin (`$ asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
+  4. Install terraformsh plugin (`$ asdf install terraformsh latest`)
+
+## About
+
+  **Note:** Throughout this documentation, the terms **"Terraform"** and **"OpenTofu"** are used interchangeably. All commands, configurations, and practices are compatible with both tools.
+
   Terraformsh is a Bash script that makes it easier to run Terraform by 
   performing common steps for you. It also makes it easy to
   [keep your configuration DRY](./DRY_CODE.md) and deploy a hierarchical
@@ -61,8 +77,15 @@
 
   The plan files are, by default, written to the directory where you ran Terraformsh,
   with a naming convention like `tfsh.92h39d9hd9.plan`. You can override this by
-  setting environent or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
+  setting environment or configuration variable *TF_PLANFILE* and *TF_DESTROY_PLANFILE*.
 
+  Should you need to check what the value of *TF_PLANFILE* will be (for example to
+  grab the plan file after running terraformsh), this command will print the value:
+  
+  ```
+  $ ./terraformsh -q env sh -c 'echo $TF_PLANFILE'
+  /Users/pwillis/git/GITHUB.COM/PWILLIS-ELS/terraformsh/tf.996d6c1308.plan
+  ```
 
 ### Multiple commands as arguments
 
@@ -116,8 +139,11 @@
 
 
   Finally, if in any *parent directory* of where you ran Terraformsh, there are
-  files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, or `terraform.sh.tfvars`,
-  those will also be loaded automatically (you can disable this with the `-I` option).
+  files named `backend.sh.tfvars`, `terraform.sh.tfvars.json`, `tofu.sh.tfvars.json`,
+  `terraform.sh.tfvars`, or `tofu.sh.tfvars`, those will also be loaded automatically
+  (you can disable this with the `-I` option). When both Terraform and OpenTofu are
+  installed, Terraformsh only loads the tfvars file names that match the selected
+  tool; otherwise it loads both Terraform and OpenTofu file names.
 
         $ mkdir -p some/configs/here
         $ cd some
@@ -153,8 +179,11 @@
   with a data source.
 
   You can set the following variables in a config file (any of:
-  `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`),
-  or set them as environment variables before you call Terraformsh:
+  `/etc/terraformsh`, `~/.terraformshrc`, `.terraformshrc`, `terraformsh.conf`,
+  `tofush.conf`), or set them as environment variables before you call Terraformsh.
+  When both Terraform and OpenTofu are installed, only the config file that matches
+  the selected tool is loaded; otherwise both terraformsh.conf and tofush.conf are
+  loaded if they exist.
 
     DEBUG=1                     # Enable bash tracing
     TERRAFORM=terraform         # The name of the terraform executable
@@ -167,6 +196,7 @@
     NO_DEP_CMDS=1               # Don't run dependent commands automatically
     NO_CLEANUP_TMP=1            # Don't clean up temporary TF_DATA_DIR
     DRYRUN=1                    # Enable dry-run mode
+    QUIET_MODE=1                # Enable quiet mode
     CD_DIR=             # The directory to change to before running terraform commands
 
   The environment variable `TF_DATA_DIR` is automatically overridden by Terraformsh.
@@ -210,6 +240,14 @@
 
 
   An example file: [.terraformshrc-example](.terraformshrc-example)
+
+  **NOTE:** You can use Terraformsh's `env` command to print out the values
+  of internal Terraform variables as they exist at run time, e.g.:
+  ```
+  terraformsh env
+  ```
+  You can also pass arguments after this, that will be passed to your system's
+  `env` command.
 
 
 ### Interactive troubleshooting
@@ -290,11 +328,12 @@
 
 ---
 
+## Usage
 
-    terraformsh v0.15
+    terraformsh v0.15 - Bash wrapper around Terraform and OpenTofu
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
-# Options
+### Options
 
   Pass these OPTIONS before any others (see examples); do not pass them after
   TFVARS or COMMANDs.
@@ -308,7 +347,8 @@
     -c file         Specify a '.terraformshrc' configuration file to load.
     -E EXPR         Evaluate an expression in bash ('eval EXPR').
     -I              Disables automatically loading any 'terraform.sh.tfvars',
-                    'terraform.sh.tfvars.json', or 'backend.sh.tfvars' files
+                    'tofu.sh.tfvars', 'terraform.sh.tfvars.json',
+                    'tofu.sh.tfvars.json', or 'backend.sh.tfvars' files
                     found while recursively searching parent directories.
                       ( config: INHERIT_TFFILES=0 )
     -P              Do not use '.plan' files for plan/apply/destroy commands.
@@ -322,9 +362,11 @@
                       ( config: NO_CLEANUP_TMP=1 )
     -v              Verbose mode.
                       ( config: DEBUG=1 )
+    -q              Quiet mode.
+                      ( config: QUIET_MODE=1 )
     -h              This help screen.
 
-# Commands
+### Commands
 
   The following are Terraform commands that terraformsh provides wrappers for
   (there's some Terraformsh-specific logic behind the scenes). Other Terraform

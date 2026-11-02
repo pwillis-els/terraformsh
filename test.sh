@@ -21,6 +21,20 @@ set -u
 
 # Don't modify anything after here
 
+ # Function to delete version-specific tf file that might not be needed based on the TF version
+_check_and_delete_provider_files() {
+    folder="$1"
+    tf_ver="$2"
+    if [ -n "$folder" ] && [ -d "$folder" ]; then
+        # Based on the TF version, keep or delete specific files
+        if [ "$tf_ver" != "pre-0.12" ]; then
+            find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Removing unnecessary provider file: {}" \; -delete
+        else
+            find "$folder" -maxdepth 1 -type f -name "*-pre-0.12.tf" -exec echo "Keeping version-specific provider file: {}" \;
+        fi
+    fi
+}
+
 ### _main() - run the tests
 ### Arguments:
 ###     TESTPATH        -   A file path ending with '.t'
@@ -28,13 +42,19 @@ _main () {
     _fail=0 _pass=0 _failedtests=""
     testsh_pwd="$(pwd)"
 
+    . "tests/0000-pre-req-detect-tf-version.sh"
+
     for i in "$@" ; do
 
-        cd "$testsh_pwd"
+        echo "======================================================================"
+
+        cd "$testsh_pwd" || exit 1
 
         # The following variables should be used by *.t scripts
         base_name="$(basename "$i" .t)"     ### So you don't need ${BASH_SOURCE[0]}
         tmp="$(mktemp -d)"                  ### Copy your test files into here
+
+        echo "$0: Running test '$base_name' ..." 1>&2
 
         . "$i" # load the test script into this shell
 
@@ -52,11 +72,15 @@ _main () {
             fi
         done
 
+        echo "$0: Finished test '$base_name'" 1>&2
+
         rm -rf "$tmp"
         [ $fail -gt 0 ] && echo "$0: $base_name: Failed $fail tests" && _fail="$(($_fail+$fail))"
         _pass=$(($_pass+$pass))
 
     done
+
+    echo "======================================================================"
 }
 
 _main "$@"
