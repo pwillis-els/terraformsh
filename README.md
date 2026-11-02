@@ -330,7 +330,7 @@
 
 ## Usage
 
-    terraformsh v0.15 - Bash wrapper around Terraform and OpenTofu
+    terraformsh v0.16 - Bash wrapper around Terraform and OpenTofu
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
 ### Options
