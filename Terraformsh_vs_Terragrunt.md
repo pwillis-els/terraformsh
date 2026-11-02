@@ -4,6 +4,20 @@ This is an (admittedly biased) comparison of Terraformsh to Terragrunt. If you f
 
 For the more wordy origins of Terraformsh, see [PHILOSOPHY.md](./PHILOSOPHY.md).
 
+## Main Takeaways
+
+### Terraformsh
+ - Users don't need to learn custom HCL to modify configs and deploy changes
+ - Config file designed for user to not need to know anything, just run `terraformsh` command in a specific dir and it does what's needed. No knowledge about the tool required
+ - Run it how you want. Endless configuration options, execution options. Modify the source code if you want (it's just a small shell script!)
+ - Almost the same as stock Terraform, while making things easier, safer, more reliable by default
+
+### Terragrunt
+ - Implements its own custom version of HCL which user needs to learn first, not applicable to any other tool
+ - Writes/builds custom Terraform code on the fly, execution is dynamic and based on reading/interpreting many files
+ - Many more concepts built in; more to learn, more to go wrong
+ - Limiting: can't do things with Terragrunt unless there's a built-in feature. No customizing/tweaking/hacking (without becoming a Go programmer)
+
 
 ## Design overview
 
@@ -20,60 +34,58 @@ For the more wordy origins of Terraformsh, see [PHILOSOPHY.md](./PHILOSOPHY.md).
 | Assumes the use of .tfvars files to pass data to Terraform | Mixes environment variables, .tfvars, and Terraform code generated on-the-fly |
 | Unopinionated | Opinionated |
 
-### General Notes
-
-#### Terraformsh
- - Users do not need to learn HCL to modify .tfvars files and deploy changes to modules
- - Configuration file designed so you can have a user just run the 'terraformsh' command, and it will do whatever is needed, with no knowledge about the tool required.
- - Run it any way you want, use it any way you want. Endless configuration options, execution options. Modify the source code if you want (it's just a shell script)
-
-#### Terragrunt
- - Implements its own custom Domain-Specific Language. 
-   You cannot modify anything in Terragrunt without first learning Hashicorp Configuration Language, and then learning Terragrunt's changes to the language.
-   No other tool uses this, so once you learn this, you can't use this knowledge for any other purpose.
-   Any users you want to work with your infra will have to become Terraform/Terragrunt experts.
- - Writes/builds custom Terraform code on the fly
- - Limiting
-   - You cannot do things with Terragrunt unless they have built a feature for it. No customizing/tweaking/hacking, without becoming a Go programmer and forking the Terragrunt source code.
-
-
 ### Design Concepts/Features
 
 Terraformsh has fewer design concepts and features.
 
+<table>
+<tr>
+<td>
+
 #### Terraformsh
- - Shell scripting
- - Terraform commands
- - Hierarchical configuration
- - Sane/safe default behavior
- - Avoid common problems
- - Automate away toil
+<ul>
+<li> Shell scripting
+<li> Terraform commands
+<li> Hierarchical configuration
+<li> Sane/safe default behavior
+<li> Avoid common problems
+<li> Automate away toil
+</ul>
+</td><td>
 
 #### Terragrunt
- - Units
- - Stacks
- - Includes
- - Backends
- - Catalogs
- - Scaffolds
- - Extra Arguments
- - Authentication
- - Before/After/Error Hooks
- - Auto-init
- - Feature flags
- - Provider Cache Server
-
+<ul>
+<li> Units
+<li> Stacks
+<li> Includes
+<li> Backends
+<li> Catalogs
+<li> Scaffolds
+<li> Extra Arguments
+<li> Authentication
+<li> Before/After/Error Hooks
+<li> Auto-init
+<li> Feature flags
+<li> Provider Cache Server
+</ul>
+</td>
+</tr>
+</table>
 
 ## Configuration examples
 
-Below are examples of Terraformsh and Terragrunt. You'll see how Terraformsh's configuration is much smaller and simpler, and thus easier to understand, operate, and maintain.
+Below are examples of Terraformsh and Terragrunt.
+
+What you'll find is that Terraformsh's configuration and operation is much smaller and simpler, while Terragrunt's is complex.
+
+Despite that, they accomplish virtually the same tasks, the difference being a human (or AI agent) organizes and runs them differently.
 
 ### Terraformsh
 
 #### Sample: A deployable Terraform module
 
 <details>
-<summary>This is a configuration file for a deployable directory with Terraformsh.</summary>
+<summary>[expand] Sample configuration files for Terraformsh</summary>
 
 ```
 # root/terraform.sh.tfvars
@@ -127,24 +139,24 @@ key = "tfstate/stage/us-east-1/mysql.tfstate"
 ```
 
 </details>
+<br />
 
+##### What does that sample configuration do?
 
-##### What does this do?
-
-1. The user changes to directory `root/stage/us-east-1/mysql` and runs `$ terraformsh plan`
+1. User changes to directory `root/stage/us-east-1/mysql` and runs `$ terraformsh plan`
    1. Terraformsh finds all files in parent directories like `terraform.sh.tfvars` or `backend.sh.tfvars`
    2. Terraformsh will change to the `$CD_DIR` directory (the root of the git repo + `tf/aws/root/rds/cluster-aurora`)
    3. Terraformsh will run `terraform plan` and pass all the `terraform.sh.tfvars` and `backend.sh.tfvars` files
 
-As you can see, it's not doing anything special, and doesn't require lots of configuration.
-Everything that happens at this point is the same way it is with stock Terraform.
+Everything that happens is effectively identical to stock Terraform.
 
-A "downside" here is that it doesn't force you to write your Terraform modules any particular way.
-You must intentionally write your modules to be reusable and DRY. You must also intentionally create
-your .tfvars files to split up and inherit your configuration.
+Note that Terraformsh doesn't force you to write your Terraform modules in any particular way.
+If you want your modules to be reusable and DRY, you must write them that way (Terraformsh doesn't do it for you).
+You must therefore intentionally name variables so they are independent per module (if you want them to be
+inherited separatey), or reuse the same name variable across modules (to overwrite their values).
 
-The "upside" here is there is no advanced functionality to use, so you are forced to do things in a simple way.
-That ends up making it much easier to see where everything is, how it all works, and there is less that can go wrong.
+The benefit here is a *lack* of advanced functionality, which forces you to work in a simple way.
+The result is it's easier to see what, where, and how everything is, so there's less that can go wrong.
 
 
 ### Terragrunt
@@ -152,7 +164,7 @@ That ends up making it much easier to see where everything is, how it all works,
 #### Sample: A Terragrunt installation
 
 <details>
-<summary>A sample Terragrunt configuration</summary>
+<summary>[expand] Sample Terragrunt configuration files</summary>
 From https://github.com/gruntwork-io/terragrunt-infrastructure-live-example/ :
 
 ```
@@ -279,12 +291,13 @@ terraform {
 ```
 
 </details>
+<br />
 
-##### What does this do?
+##### What does that sample configuration do?
 
-1. When you run Terragrunt, it will scan all subdirectories for modules.
-2. If you wanted Terragrunt to run a command in those subdirectories, it will begin processing them one by one...
-   1. It goes to the subdirectory: `nonprod/us-east-1/stage/mysql`
+1. User runs Terragrunt; it scans all subdirectories for modules.
+2. For Terragrunt to run a command in those subdirectories, it will begin processing them one by one...
+   1. It goes to subdirectory `nonprod/us-east-1/stage/mysql`
    2. It looks in all parent directories for a `root.hcl` file and begins parsing it
       1. It looks in parent directories of the first subdirectory (not the root directory...) for a file `account.hcl`
       2. It sets `account_name` and `aws_account_id` local variables
@@ -309,14 +322,18 @@ terraform {
    4. It defines the version of the Terraform module to deploy from this directory
     
 
-As you can see, there is a lot going on here.
- - Multiple directories are traversed, variables get created on the fly, code is generated.
- - Files are loaded from all different paths depending on what's going on; it's hard to follow the execution without reading and traversing every file.
- - There are many different new failure modes exposed here (ways things can go wrong) that don't exist with stock Terraform.
- - Variables are created on the fly, rather than being static, so it's hard to tell where a value or change is coming from.
- - Execution jumps around in different files at different times. Different parts of a Terraform module are defined in different Terragrunt files. You can't just look at one directory of files and see what the Terraform module will do or look like, it's generated on the fly.
+**As you can see, there's a lot more going on with Terragrunt:**
+ - Multiple directories traversed
+ - Code generated on the fly (debugging is harder)
+ - Variables created on the fly (hard to tell where a value/change originates)
+ - Files loaded from different paths depending what's going on (hard to follow execution without reading and traversing every file)
+ - Different parts of a single Terraform module defined in different Terragrunt files
+ - Execution in different files at different times
 
-Consequently:
+**So consequently:**
  - Troubleshooting will be more difficult, as you attempt to determine at which point a problem has occurred.
  - In order to edit or troubleshoot any of this, you will have to be trained on Terragrunt concepts, operation, and language, after you have learned Terraform.
  - None of this is stock Terraform behavior.
+
+
+
