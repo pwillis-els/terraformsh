@@ -1,8 +1,8 @@
 # Terraformsh VS Terragrunt
 
-This is an admittedly biased comparison of Terraformsh to Terragrunt.
-If any inaccuracies are found (or it's just confusing), please open an issue or pull request so it can be corrected here.
-Thank you
+This is an (admittedly biased) comparison of Terraformsh to Terragrunt. If you find it to be inaccurate or need improving, please feel free to open a PR.
+
+For the more wordy origins of Terraformsh, see [PHILOSOPHY.md](./PHILOSOPHY.md).
 
 
 ## Design overview
@@ -20,7 +20,7 @@ Thank you
 | Assumes the use of .tfvars files to pass data to Terraform | Mixes environment variables, .tfvars, and Terraform code generated on-the-fly |
 | Unopinionated | Opinionated |
 
-### Notes
+### General Notes
 
 #### Terraformsh
  - Users do not need to learn HCL to modify .tfvars files and deploy changes to modules
@@ -38,6 +38,8 @@ Thank you
 
 
 ### Design Concepts/Features
+
+Terraformsh has fewer design concepts and features.
 
 #### Terraformsh
  - Shell scripting
@@ -62,13 +64,16 @@ Thank you
  - Provider Cache Server
 
 
-## Configuration example
+## Configuration examples
+
+Below are examples of Terraformsh and Terragrunt. You'll see how Terraformsh's configuration is much smaller and simpler, and thus easier to understand, operate, and maintain.
 
 ### Terraformsh
 
-#### Sample 1: A deployable Terraform module
+#### Sample: A deployable Terraform module
 
-This is a configuration file for a deployable directory with Terraformsh.
+<details>
+<summary>This is a configuration file for a deployable directory with Terraformsh.</summary>
 
 ```
 # root/terraform.sh.tfvars
@@ -121,6 +126,7 @@ service_name = "mydb"
 key = "tfstate/stage/us-east-1/mysql.tfstate"
 ```
 
+</details>
 
 
 ##### What does this do?
@@ -141,12 +147,13 @@ The "upside" here is there is no advanced functionality to use, so you are force
 That ends up making it much easier to see where everything is, how it all works, and there is less that can go wrong.
 
 
-
 ### Terragrunt
 
-#### Sample 1: A sample Terragrunt installation
+#### Sample: A Terragrunt installation
 
-This is the root file of their configuration, from https://github.com/gruntwork-io/terragrunt-infrastructure-live-example/
+<details>
+<summary>A sample Terragrunt configuration</summary>
+From https://github.com/gruntwork-io/terragrunt-infrastructure-live-example/ :
 
 ```
 # root.hcl
@@ -270,6 +277,8 @@ terraform {
   source = "${include.envcommon.locals.base_source_url}?ref=v0.8.0"
 }
 ```
+
+</details>
 
 ##### What does this do?
 
