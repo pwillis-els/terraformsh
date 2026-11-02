@@ -8,9 +8,9 @@
 
 ## Installation
 
-  You can just copy this script to any 'bin/' directory in your PATH.
+  You can copy this script to any 'bin/' directory in your PATH.
 
-  You can also pin versions of this script using 'asdf':
+  You can also pin versions of this script using `asdf`:
   1. Install ASDF (https://asdf-vm.com/guide/getting-started.html)
   2. Configure/load ASDF in your shell
   3. Add the terraformsh plugin (`$ asdf plugin add terraformsh https://github.com/pwillis-els/terraformsh.git`)
@@ -20,24 +20,32 @@
 
   **Note:** Throughout this documentation, the terms **"Terraform"** and **"OpenTofu"** are used interchangeably. All commands, configurations, and practices are compatible with both tools.
 
-  Terraformsh is a Bash script that makes it easier to run Terraform or
-  OpenTofu by performing common steps for you. It also makes it easy to
-  keep your configuration DRY and deploy infrastructure based on a directory
-  hierarchy of environments. See [DRY_CODE.md](./DRY_CODE.md) for more details.
+  Terraformsh is a Bash script that makes it easier to run Terraform by 
+  performing common steps for you. It also makes it easy to
+  [keep your configuration DRY](./DRY_CODE.md) and deploy a hierarchical
+  set of infrastructure.
 
-  Unlike Terragrunt, this script includes no DSL or code generation. All it
-  does is make it easier to call Terraform. See [PHILOSOPHY.md](./PHILOSOPHY.md)
+  [Unlike Terragrunt](./Terraformsh_vs_Terragrunt.md), this script includes no DSL or code generation.
+  The design is intentionally simple, and just calls Terraform for you. See [PHILOSOPHY.md](./PHILOSOPHY.md)
   for more details.
 
-  Terraformsh will detect and use Terraform `-var-files` and `-backend-config`
-  configuration files across a directory hierarchy. It also has its own 
-  configuration file so you don't have to remember any command other than
-  `terraformsh` itself (removing the need for a `Makefile`, though you can
-  still use one if you want).
+  Terraformsh is able to match most use cases for Terragrunt despite
+  being vastly simpler. This is due in part to the way Terraformsh is
+  intended to be used. It's designed to take advantage of a reverse hierarcy
+  of directories of configuration files, automatically passing `-var-files`
+  and `-backend-config` options (among others) to keep configuration DRY.
+  
+  Terraformsh also has its own configuration file to simplify running it, so
+  you don't need to remember any arguments; just go to the right directory
+  and run 'terraformsh' and it can take care of everything for you. You can
+  override all Terraformsh options with environment variables, command-line options
+  and config files.
 
-  You can override any options with environment variables, command-line options
-  and config files. Good conventions like using *.plan* files for changes are the
-  default.
+  Finally, Terraformsh does things for you that you'd normally want. For example:
+  before running 'plan' it will run 'init';
+  it will use *.plan* files for plan/apply;
+  it makes local state ephemeral using temporary directories; etc.
+  (all of this behavior can be overridden/changed)
 
 
 ## How it works
@@ -322,7 +330,6 @@
 
 ## Usage
 
-    $ terraformsh -h
     terraformsh v0.16 - Bash wrapper around Terraform and OpenTofu
     Usage: ./terraformsh [OPTIONS] [TFVARS] COMMAND [..]
 
