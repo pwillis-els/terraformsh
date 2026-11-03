@@ -772,6 +772,7 @@ _rand () { # Linear congruent generator: cc65
 }
 # MacOS mktemp sucks and doesn't support -p (nor respects TMPDIR)
 _mktemp () {
+    local OPTIND=1 OPTARG args
     local _tmpdir="${TMPDIR:-/tmp}" _makedir=0 _dirprefix=""
     local _cmd="touch" _template="tmp.XXXXXXXXXX" _new _templatetmp
     while getopts "dp:t:" args ; do
